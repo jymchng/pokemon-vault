@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Package } from "lucide-react";
 
@@ -22,7 +23,7 @@ export default function Home() {
           <Button
             variant="outline"
             size="lg"
-            render={<a href="/packs" />}
+            render={<Link href="/packs" />}
             nativeButton={false}
           >
             <Package /> Explore Packs
