@@ -14,6 +14,7 @@ import {
   Gift,
   Settings,
   LogOut,
+  LogIn,
 } from "lucide-react";
 import { useUiStore } from "@/lib/store/ui-store";
 import { useCartStore } from "@/lib/store/cart-store";
@@ -35,7 +36,7 @@ export function TopBar() {
   const pathname = usePathname();
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const setCartOpen = useUiStore((s) => s.setCartOpen);
-  const setSignInOpen = useUiStore((s) => s.setSignInOpen);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
   const cartCount = useCartStore((s) =>
     s.items.reduce((acc, i) => acc + i.quantity, 0),
@@ -182,21 +183,15 @@ export function TopBar() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <div className="ml-1 flex items-center gap-1.5">
+          <div className="ml-1 flex items-center">
+            {/* Yellow login icon — compact, keeps the search bar wide on all sizes */}
             <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs"
+              size="icon-sm"
+              className="shrink-0"
               onClick={() => setSignInOpen(true)}
+              aria-label="Sign in"
             >
-              Sign In
-            </Button>
-            <Button
-              size="sm"
-              className="text-xs"
-              onClick={() => setSignInOpen(true)}
-            >
-              Create Account
+              <LogIn className="size-4" />
             </Button>
           </div>
         )}

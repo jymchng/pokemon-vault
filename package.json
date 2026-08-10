@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npm run build:assets",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
@@ -15,7 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force --skip-seed && npm run db:seed",
     "db:studio": "prisma studio",
-    "prebuild": "npm run db:generate"
+    "prebuild": "npm run db:generate",
+    "build:assets": "node scripts/copy-assets.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

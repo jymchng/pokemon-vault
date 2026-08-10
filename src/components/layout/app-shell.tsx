@@ -8,6 +8,7 @@ import { MobileNavDrawer } from "./mobile-nav-drawer";
 import { Footer } from "./footer";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { SearchOverlay } from "@/components/navigation/search-overlay";
+import { SignInModal } from "@/components/auth/sign-in-modal";
 import { Toaster } from "@/components/ui/sonner";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <MobileNavDrawer />
       <CartDrawer />
       <SearchOverlay />
+      <SignInModal />
       <Toaster position="bottom-right" richColors />
     </div>
   );
