@@ -45,6 +45,10 @@ export const queryKeys = {
     addresses: ["shipping", "addresses"] as const,
     shipments: ["shipping", "shipments"] as const,
   },
+  orders: {
+    all: ["orders"] as const,
+    detail: (id: string) => ["orders", id] as const,
+  },
 } as const;
 
 /* ── Cards ────────────────────────────────────────────── */
@@ -245,5 +249,22 @@ export function useOpenPackMutation() {
       // Collection/activity are client stores, but invalidate server-mirror caches
       queryClient.invalidateQueries({ queryKey: queryKeys.activity.all });
     },
+  });
+}
+
+/* ── Orders ─────────────────────────────────────────────── */
+
+export function useOrders() {
+  return useQuery({
+    queryKey: queryKeys.orders.all,
+    queryFn: api.fetchOrders,
+  });
+}
+
+export function useOrder(id: string) {
+  return useQuery({
+    queryKey: queryKeys.orders.detail(id),
+    queryFn: () => api.fetchOrderById(id),
+    enabled: Boolean(id),
   });
 }

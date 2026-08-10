@@ -119,6 +119,7 @@ export interface Order {
   status: OrderStatus;
   trackingNumber?: string;
   estimatedDelivery?: string;
+  deliveredDate?: string;
   address: string;
 }
 

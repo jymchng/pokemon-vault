@@ -6,6 +6,7 @@ import { TopBar } from "./top-bar";
 import { MobileNav } from "./mobile-nav";
 import { Footer } from "./footer";
 import { CartDrawer } from "@/components/cart/cart-drawer";
+import { SearchOverlay } from "@/components/navigation/search-overlay";
 import { Toaster } from "@/components/ui/sonner";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <MobileNav />
       <CartDrawer />
+      <SearchOverlay />
       <Toaster position="bottom-right" richColors />
     </div>
   );

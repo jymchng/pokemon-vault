@@ -4,7 +4,6 @@ import { ShoppingBag, Trash2, Plus, Minus } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useUiStore } from "@/lib/store/ui-store";
 import { formatCurrency } from "@/lib/utils/format";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {

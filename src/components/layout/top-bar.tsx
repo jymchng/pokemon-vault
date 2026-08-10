@@ -18,6 +18,7 @@ import {
 import { useUiStore } from "@/lib/store/ui-store";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useWishlistStore } from "@/lib/store/wishlist-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { Logo } from "./logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,8 +40,7 @@ export function TopBar() {
     s.items.reduce((acc, i) => acc + i.quantity, 0),
   );
   const wishlistCount = useWishlistStore((s) => s.ids.length);
-  // Mock signed-out state for now
-  const signedIn = false;
+  const signedIn = useAuthStore((s) => s.signedIn);
 
   return (
     <header className="fixed top-0 right-0 left-0 z-40 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-md md:left-56">
@@ -86,14 +86,14 @@ export function TopBar() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="relative text-muted-foreground"
+          className="relative overflow-visible text-muted-foreground"
           render={<Link href="/wishlist" />}
           nativeButton={false}
           aria-label={`Wishlist, ${wishlistCount} items`}
         >
           <Heart />
           {wishlistCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+            <span className="absolute top-0 right-0 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
               {wishlistCount}
             </span>
           )}
@@ -103,13 +103,13 @@ export function TopBar() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="relative text-muted-foreground"
+          className="relative overflow-visible text-muted-foreground"
           onClick={() => setCartOpen(true)}
           aria-label={`Open cart, ${cartCount} items`}
         >
           <ShoppingBag />
           {cartCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+            <span className="absolute top-0 right-0 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
               {cartCount}
             </span>
           )}
