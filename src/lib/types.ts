@@ -8,7 +8,8 @@ export type Rarity =
   | "Special Illustration Rare"
   | "Secret Rare";
 
-export type Grade = "Ungraded" | "PSA 10" | "PSA 9" | "CGC 10" | "BGS 10";
+export type Grade =
+  "Ungraded" | `PSA ${number}` | `CGC ${number}` | `BGS ${number}`;
 
 export type CardCondition =
   "Gem Mint" | "Mint" | "Near Mint" | "Excellent" | "Good";
