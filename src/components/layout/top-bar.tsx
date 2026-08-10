@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -41,6 +42,7 @@ export function TopBar() {
   );
   const wishlistCount = useWishlistStore((s) => s.ids.length);
   const signedIn = useAuthStore((s) => s.signedIn);
+  const signOut = useAuthStore((s) => s.signOut);
 
   return (
     <header className="fixed top-0 right-0 left-0 z-40 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-md md:left-56">
@@ -133,27 +135,48 @@ export function TopBar() {
               <User />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="px-2 py-1.5 text-xs">
-                <span className="block font-semibold text-foreground">
-                  Trainer
-                </span>
-                <span className="text-muted-foreground">Level 7 Collector</span>
-              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="px-2 py-1.5 text-xs">
+                  <span className="block font-semibold text-foreground">
+                    Trainer
+                  </span>
+                  <span className="text-muted-foreground">
+                    Level 7 Collector
+                  </span>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href="/collection" />}
+                nativeButton={false}
+              >
                 <Layers /> My Collection
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href="/orders" />}
+                nativeButton={false}
+              >
                 <BagIcon /> Orders
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href="/rewards" />}
+                nativeButton={false}
+              >
                 <Gift /> Rewards
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href="/account" />}
+                nativeButton={false}
+              >
                 <Settings /> Account Settings
               </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive">
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => {
+                  signOut();
+                }}
+              >
                 <LogOut /> Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
