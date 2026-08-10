@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Package } from "lucide-react";
-import { getActivityEvents, platformPulls } from "@/lib/data/activity";
+import { getActivityEvents, type PlatformPull } from "@/lib/data/activity";
+import { useActivity, usePlatformPulls } from "@/lib/hooks/queries";
 import { ActivityItem } from "@/components/collection/activity-item";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
@@ -35,7 +36,7 @@ function groupByDay(events: ReturnType<typeof getActivityEvents>) {
   return groups;
 }
 
-function PullRow({ pull }: { pull: (typeof platformPulls)[number] }) {
+function PullRow({ pull }: { pull: PlatformPull }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-colors hover:border-border-strong">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -66,8 +67,14 @@ function PullRow({ pull }: { pull: (typeof platformPulls)[number] }) {
 
 export default function ActivityPage() {
   const [tab, setTab] = useState<"you" | "platform">("you");
-  const events = useMemo(() => getActivityEvents(), []);
+  const { data: activityData } = useActivity();
+  const { data: platformData } = usePlatformPulls();
+  const events = useMemo(
+    () => activityData ?? getActivityEvents(),
+    [activityData],
+  );
   const groups = useMemo(() => groupByDay(events), [events]);
+  const platformPulls = platformData ?? [];
 
   return (
     <div className="flex flex-col gap-6">

@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { packs, latestPulls, getPackBySlug } from "@/lib/data/packs";
+import { usePack, useLatestPulls } from "@/lib/hooks/queries";
 import { PackOpenStage } from "@/components/packs/pack-open-stage";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { PriceTag, ValueDelta } from "@/components/ui/price-tag";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/format";
 import { useCartStore } from "@/lib/store/cart-store";
 import { toast } from "sonner";
@@ -39,7 +39,10 @@ export default function PackDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const pack = getPackBySlug(slug);
+  const { data: packData } = usePack(slug);
+  const { data: pullData } = useLatestPulls();
+  const pack = packData ?? getPackBySlug(slug);
+  const pulls = pullData ?? latestPulls;
   const [quantity, setQuantity] = useState(1);
   const [turbo, setTurbo] = useState(false);
   const [buyback, setBuyback] = useState(false);
@@ -252,7 +255,7 @@ export default function PackDetailPage({
           </Link>
         </div>
         <div className="flex flex-col gap-2">
-          {latestPulls.map((pull) => (
+          {pulls.map((pull) => (
             <div
               key={pull.id}
               className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"

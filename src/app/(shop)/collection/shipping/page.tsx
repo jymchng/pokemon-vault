@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Truck, MapPin, Package, ChevronRight } from "lucide-react";
-import { addresses, shipments } from "@/lib/data/shipping";
+import { useAddresses, useShipments } from "@/lib/hooks/queries";
+import type { Shipment } from "@/lib/data/shipping";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ const statusVariant = {
   Processing: "outline",
 } as const;
 
-function ShipmentCard({ shipment }: { shipment: (typeof shipments)[number] }) {
+function ShipmentCard({ shipment }: { shipment: Shipment }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -34,7 +35,9 @@ function ShipmentCard({ shipment }: { shipment: (typeof shipments)[number] }) {
             {shipment.carrier} · {shipment.trackingNumber}
           </span>
         </div>
-        <Badge variant={statusVariant[shipment.status]}>
+        <Badge
+          variant={statusVariant[shipment.status as keyof typeof statusVariant]}
+        >
           {shipment.status}
         </Badge>
       </div>
@@ -124,6 +127,10 @@ function ShipmentCard({ shipment }: { shipment: (typeof shipments)[number] }) {
 export default function ShippingPage() {
   const signedIn = useAuthStore((s) => s.signedIn);
   const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+  const { data: addrData } = useAddresses();
+  const { data: shipData } = useShipments();
+  const addresses = addrData ?? [];
+  const shipments = shipData ?? [];
 
   if (!signedIn) {
     return (

@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Trophy, Gift, ChevronRight, Crown, Package } from "lucide-react";
-import { rewardTiers, leaderboardEntries, waysToWin } from "@/lib/data/rewards";
+import { Trophy, ChevronRight, Crown, Package } from "lucide-react";
+import {
+  useLeaderboard,
+  useRewardTiers,
+  useWaysToWin,
+} from "@/lib/hooks/queries";
+import type { LeaderboardEntry } from "@/lib/data/rewards";
 import { PageHeader, SectionHeader } from "@/components/ui/page-header";
 import { RewardProgress } from "@/components/rewards/reward-progress";
 import { Badge } from "@/components/ui/badge";
@@ -67,10 +72,11 @@ function LevelCard() {
 
 function RewardLadder() {
   const xp = useRewardsStore((s) => s.xp);
+  const { data: tiers } = useRewardTiers();
 
   return (
     <div className="flex flex-col gap-2">
-      {rewardTiers.map((tier) => {
+      {(tiers ?? []).map((tier) => {
         const unlocked = xp >= tier.xp;
         const next = !unlocked && xp < tier.xp;
         return (
@@ -120,13 +126,9 @@ function RewardLadder() {
   );
 }
 
-function Podium({
-  entries,
-}: {
-  entries: (typeof leaderboardEntries)[number][];
-}) {
-  // order: 2nd, 1st, 3rd visually
-  const order = [entries[1], entries[0], entries[2]];
+function Podium({ entries }: { entries: LeaderboardEntry[] }) {
+  // order: 2nd, 1st, 3rd visually (guard against partial data)
+  const order = [entries[1], entries[0], entries[2]].filter(Boolean);
   const heights = { 1: "h-28", 2: "h-20", 3: "h-16" };
 
   return (
@@ -177,6 +179,9 @@ export default function RewardsPage() {
   const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
   const xp = useRewardsStore((s) => s.xp);
   const level = useRewardsStore((s) => s.level);
+  const { data: leaderboard } = useLeaderboard();
+  const { data: ways } = useWaysToWin();
+  const entries = leaderboard ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -193,7 +198,8 @@ export default function RewardsPage() {
           currentLevelXp={(level - 1) * 500}
           nextLevelXp={level * 500}
           nextRewardLabel={
-            rewardTiers.find((t) => xp < t.xp)?.label ?? "Maxed out"
+            (useRewardTiers().data ?? []).find((t) => xp < t.xp)?.label ??
+            "Maxed out"
           }
         />
       </div>
@@ -243,13 +249,20 @@ export default function RewardsPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-surface p-5">
-          <Podium entries={leaderboardEntries} />
-        </div>
+        {entries.length === 0 ? (
+          <div className="grid gap-3 rounded-2xl border border-border bg-surface p-5">
+            <div className="skeleton h-28 w-full rounded-xl" />
+            <div className="skeleton h-14 w-full rounded-xl" />
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-border bg-surface p-5">
+            <Podium entries={entries} />
+          </div>
+        )}
 
         {/* Ranked rows */}
         <div className="flex flex-col gap-2">
-          {leaderboardEntries.slice(3).map((entry) => (
+          {entries.slice(3).map((entry) => (
             <div
               key={entry.rank}
               className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
@@ -318,7 +331,7 @@ export default function RewardsPage() {
       <section className="flex flex-col gap-3">
         <SectionHeader title="Ways to Win" />
         <div className="grid gap-3 sm:grid-cols-3">
-          {waysToWin.map((way) => (
+          {(ways ?? []).map((way) => (
             <div
               key={way.title}
               className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4"

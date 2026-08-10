@@ -9,16 +9,17 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import {
-  products,
   getProductById,
   categories,
   sortOptions,
   type ProductSortKey,
 } from "@/lib/data/products";
+import { useProducts } from "@/lib/hooks/queries";
 import { ProductCard } from "@/components/products/product-card";
 import { PageHeader, SectionHeader } from "@/components/ui/page-header";
 import { FilterPills } from "@/components/ui/filter-pills";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonGrid } from "@/components/ui/skeleton-card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -155,19 +156,21 @@ export default function StorePage() {
   const wishlistIds = useWishlistStore((s) => s.ids);
   const toggleWishlist = useWishlistStore((s) => s.toggle);
 
+  const { data: allProducts, isLoading, isError } = useProducts();
+
   const selected = selectedId ? getProductById(selectedId) : null;
 
   const featured = useMemo(
-    () => products.filter((p) => p.featured).slice(0, 4),
-    [],
+    () => (allProducts ?? []).filter((p) => p.featured).slice(0, 4),
+    [allProducts],
   );
   const trending = useMemo(
-    () => products.filter((p) => p.trending).slice(0, 4),
-    [],
+    () => (allProducts ?? []).filter((p) => p.trending).slice(0, 4),
+    [allProducts],
   );
 
   const filtered = useMemo(() => {
-    let list = products.filter((p) => {
+    let list = (allProducts ?? []).filter((p) => {
       if (category !== "All Products" && p.category !== category) return false;
       if (query) {
         const q = query.toLowerCase();
@@ -194,7 +197,7 @@ export default function StorePage() {
       }
     });
     return list;
-  }, [query, category, sortKey]);
+  }, [query, category, sortKey, allProducts]);
 
   const handleAddToCart = (id: string) => {
     const p = getProductById(id);
@@ -356,7 +359,15 @@ export default function StorePage() {
       </div>
 
       {/* Grid */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <SkeletonGrid count={8} />
+      ) : isError ? (
+        <EmptyState
+          icon={<Filter className="size-6" />}
+          title="Failed to load products"
+          description="Something went wrong fetching products. Please try again."
+        />
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Filter className="size-6" />}
           title="No products found"

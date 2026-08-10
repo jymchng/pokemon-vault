@@ -4,7 +4,8 @@ import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Filter, SlidersHorizontal, Search, Package } from "lucide-react";
-import { cards, getCardById } from "@/lib/data/cards";
+import { useCards } from "@/lib/hooks/queries";
+import { getCardById } from "@/lib/data/cards";
 import {
   setFilters,
   rarityFilters,
@@ -20,6 +21,7 @@ import { FilterPills, type FilterPill } from "@/components/ui/filter-pills";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { SkeletonGrid } from "@/components/ui/skeleton-card";
 import { formatCurrency, rarityVariant } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/lib/store/cart-store";
@@ -153,7 +155,11 @@ export default function CollectionPage() {
   const wishlistIds = useWishlistStore((s) => s.ids);
   const toggleWishlist = useWishlistStore((s) => s.toggle);
 
-  const ownedCards = useMemo(() => cards.filter((c) => c.owned), []);
+  const { data: allCards, isLoading, isError } = useCards();
+  const ownedCards = useMemo(
+    () => (allCards ?? []).filter((c) => c.owned),
+    [allCards],
+  );
 
   const activePills: FilterPill[] = useMemo(() => {
     const pills: FilterPill[] = [];
@@ -466,7 +472,16 @@ export default function CollectionPage() {
       </div>
 
       {/* Card grid */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <SkeletonGrid count={10} className="mt-4" />
+      ) : isError ? (
+        <EmptyState
+          icon={<Package className="size-6" />}
+          title="Failed to load your collection"
+          description="Something went wrong fetching your cards. Please try again."
+          className="mt-4"
+        />
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Package className="size-6" />}
           title="No cards found"

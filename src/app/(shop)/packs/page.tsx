@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { packs, latestPulls } from "@/lib/data/packs";
+import { latestPulls } from "@/lib/data/packs";
+import { usePacks, useLatestPulls } from "@/lib/hooks/queries";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,10 +36,10 @@ function graderBadge(grader: string) {
   return graderVariant[grader as keyof typeof graderVariant] ?? "outline";
 }
 
-function LatestPullsList() {
+function LatestPullsList({ pulls }: { pulls: typeof latestPulls }) {
   return (
     <div className="flex flex-col gap-2">
-      {latestPulls.map((pull) => (
+      {pulls.map((pull) => (
         <div
           key={pull.id}
           className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
@@ -213,11 +214,16 @@ function PackInfoPanel({
 }
 
 export default function PacksPage() {
-  const [activeSlug, setActiveSlug] = useState(packs[0].slug);
+  const { data: allPacks, isLoading } = usePacks();
+  const { data: pulls } = useLatestPulls();
+  const packs = useMemo(() => allPacks ?? [], [allPacks]);
+  const [activeSlug, setActiveSlug] = useState("");
   const [quantity, setQuantity] = useState(1);
   const activePack = useMemo(
-    () => packs.find((p) => p.slug === activeSlug) ?? packs[0],
-    [activeSlug],
+    () =>
+      (activeSlug ? packs.find((p) => p.slug === activeSlug) : packs[0]) ??
+      packs[0],
+    [activeSlug, packs],
   );
 
   const activeIndex = packs.findIndex((p) => p.slug === activePack.slug);
@@ -226,6 +232,21 @@ export default function PacksPage() {
     setActiveSlug(packs[next].slug);
     setQuantity(1);
   };
+
+  if (isLoading || packs.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Booster Packs"
+          subtitle="Open a pack and discover your next favorite card."
+        />
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="skeleton h-96 rounded-2xl" />
+          <div className="skeleton h-96 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -346,7 +367,7 @@ export default function PacksPage() {
             View activity →
           </Link>
         </div>
-        <LatestPullsList />
+        <LatestPullsList pulls={pulls ?? []} />
       </section>
 
       {/* Guaranteed authenticity */}
