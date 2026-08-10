@@ -176,3 +176,15 @@ model LatestPull {
   delta  Float
   grader String
 }
+
+// ── Platform Pulls (live feed) ──────────────────────────
+
+model PlatformPull {
+  id        String @id
+  title     String
+  condition String
+  packPrice String
+  value     Int
+  time      String
+  image     String
+}

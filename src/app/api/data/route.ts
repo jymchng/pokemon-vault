@@ -56,6 +56,10 @@ export async function GET(request: NextRequest) {
         });
         return NextResponse.json({ data: rows });
       }
+      case "platform-pulls": {
+        const rows = await prisma.platformPull.findMany();
+        return NextResponse.json({ data: rows });
+      }
       case "reward-tiers": {
         const rows = await prisma.rewardTier.findMany({
           orderBy: { xp: "asc" },

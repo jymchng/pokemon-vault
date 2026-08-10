@@ -10,7 +10,7 @@ import { products } from "../src/lib/data/products";
 import { packs, latestPulls } from "../src/lib/data/packs";
 import { sets } from "../src/lib/data/sets";
 import { orders } from "../src/lib/data/orders";
-import { activityEvents } from "../src/lib/data/activity";
+import { activityEvents, platformPulls } from "../src/lib/data/activity";
 import { rewardTiers, leaderboardEntries, waysToWin } from "../src/lib/data/rewards";
 import { addresses, shipments } from "../src/lib/data/shipping";
 
@@ -193,6 +193,20 @@ async function main() {
       deliveredDate: s.deliveredDate ?? null,
       progress: s.progress,
       items: JSON.stringify(s.items),
+    })),
+  });
+
+  // Platform pulls (live feed)
+  await prisma.platformPull.deleteMany();
+  await prisma.platformPull.createMany({
+    data: platformPulls.map((p) => ({
+      id: p.id,
+      title: p.title,
+      condition: p.condition,
+      packPrice: p.packPrice,
+      value: p.value,
+      time: p.time,
+      image: p.image,
     })),
   });
 

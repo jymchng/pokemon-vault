@@ -43,20 +43,24 @@ async function simulate<T>(data: T, latency = LATENCY): Promise<T> {
  * Fetch from the SQLite-backed API route (/api/data). Falls back to static
  * mock data if the API/DB is unavailable so the UI never looks broken.
  */
+const USE_MOCK_FALLBACK = process.env.NEXT_PUBLIC_MOCK_FALLBACK === "true";
+
 async function fromApi<T>(resource: string, fallback: T): Promise<T> {
   try {
     const res = await fetch(`/api/data?resource=${resource}`, {
       cache: "no-store",
     });
-    if (!res.ok) return fallback;
+    if (!res.ok) throw new Error(`API ${res.status}`);
     const json = (await res.json()) as { data: T | null };
     const data = json.data;
     if (data == null || (Array.isArray(data) && data.length === 0)) {
-      return fallback;
+      throw new Error("API empty");
     }
     return data;
   } catch {
-    return fallback;
+    // SQLite is the source of truth. Mock fallback is opt-in for demo/dev only.
+    if (USE_MOCK_FALLBACK) return fallback;
+    throw new ApiError("Data unavailable", 503);
   }
 }
 
@@ -164,7 +168,8 @@ export async function fetchActivity(): Promise<ActivityEvent[]> {
 }
 
 export async function fetchPlatformPulls(): Promise<PlatformPull[]> {
-  return simulate(platformPulls);
+  const data = await fromApi<PlatformPull[]>("platform-pulls", platformPulls);
+  return simulate(data);
 }
 
 /* ── Rewards / Leaderboard ─────────────────────────────── */
