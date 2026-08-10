@@ -16,10 +16,15 @@ export default function Home() {
           Discover cards, open packs, and find your next favorite Pokémon.
         </p>
         <div className="mt-2 flex items-center gap-3">
-          <Button size="lg" render={<a href="/store" />}>
+          <Button size="lg" render={<a href="/store" />} nativeButton={false}>
             Shop Cards
           </Button>
-          <Button variant="outline" size="lg" render={<a href="/packs" />}>
+          <Button
+            variant="outline"
+            size="lg"
+            render={<a href="/packs" />}
+            nativeButton={false}
+          >
             <Package /> Explore Packs
           </Button>
         </div>

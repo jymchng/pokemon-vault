@@ -11,8 +11,14 @@ export default function NotFound() {
         for doesn&apos;t exist or has moved.
       </p>
       <div className="flex items-center gap-3">
-        <Button render={<Link href="/" />}>Back to Home</Button>
-        <Button variant="outline" render={<Link href="/store" />}>
+        <Button render={<Link href="/" />} nativeButton={false}>
+          Back to Home
+        </Button>
+        <Button
+          variant="outline"
+          render={<Link href="/store" />}
+          nativeButton={false}
+        >
           Browse Store
         </Button>
       </div>

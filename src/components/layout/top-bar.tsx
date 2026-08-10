@@ -88,6 +88,7 @@ export function TopBar() {
           size="icon-sm"
           className="relative text-muted-foreground"
           render={<Link href="/wishlist" />}
+          nativeButton={false}
           aria-label={`Wishlist, ${wishlistCount} items`}
         >
           <Heart />

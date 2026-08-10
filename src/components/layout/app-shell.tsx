@@ -5,6 +5,7 @@ import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { MobileNav } from "./mobile-nav";
 import { Footer } from "./footer";
+import { Toaster } from "@/components/ui/sonner";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
       <MobileNav />
+      <Toaster position="bottom-right" richColors />
     </div>
   );
 }
