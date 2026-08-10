@@ -208,6 +208,8 @@ export function PackOpenStage({
               src={pack.image}
               alt={`${pack.name} booster pack`}
               className="size-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-10">
               <p className="text-center text-sm font-semibold text-white">
@@ -241,6 +243,8 @@ export function PackOpenStage({
               src={pack.image}
               alt=""
               className="relative size-full rounded-xl border border-primary/50 object-cover shadow-glow-accent"
+              loading="lazy"
+              decoding="async"
             />
           </motion.div>
           <motion.p
@@ -271,6 +275,8 @@ export function PackOpenStage({
                         src={pull.image}
                         alt={pull.name}
                         className="size-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                       {pull.rarity === "Secret Rare" && (
                         <motion.div

@@ -59,6 +59,8 @@ export function CartDrawer() {
                     src={item.image}
                     alt=""
                     className="size-14 shrink-0 rounded-lg border border-border object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <p className="truncate text-sm font-medium text-foreground">

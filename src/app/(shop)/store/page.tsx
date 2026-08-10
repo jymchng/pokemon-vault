@@ -233,18 +233,22 @@ export default function StorePage() {
       {/* Featured */}
       <section className="flex flex-col gap-3">
         <SectionHeader title="Featured" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {featured.map((p) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              onView={setSelectedId}
-              onAddToCart={handleAddToCart}
-              onWishlist={handleWishlist}
-              wishlisted={wishlistIds.includes(p.id)}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <SkeletonGrid count={4} />
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {featured.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                onView={setSelectedId}
+                onAddToCart={handleAddToCart}
+                onWishlist={handleWishlist}
+                wishlisted={wishlistIds.includes(p.id)}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Trending */}
@@ -253,18 +257,22 @@ export default function StorePage() {
           title="Trending Cards"
           subtitle="What collectors are chasing right now"
         />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {trending.map((p) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              onView={setSelectedId}
-              onAddToCart={handleAddToCart}
-              onWishlist={handleWishlist}
-              wishlisted={wishlistIds.includes(p.id)}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <SkeletonGrid count={4} />
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {trending.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                onView={setSelectedId}
+                onAddToCart={handleAddToCart}
+                onWishlist={handleWishlist}
+                wishlisted={wishlistIds.includes(p.id)}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Category rail */}

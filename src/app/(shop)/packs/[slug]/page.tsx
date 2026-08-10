@@ -315,6 +315,8 @@ export default function PackDetailPage({
                   src={p.image}
                   alt={p.name}
                   className="aspect-[2.5/3.5] w-full rounded-lg border border-border object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="flex flex-col gap-0.5">
                   <p className="truncate text-xs font-semibold text-foreground">

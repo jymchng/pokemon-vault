@@ -277,6 +277,8 @@ export default function CheckoutPage() {
                     src={item.image}
                     alt=""
                     className="size-8 rounded border border-border object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <span className="flex-1 truncate text-foreground">
                     {item.name}

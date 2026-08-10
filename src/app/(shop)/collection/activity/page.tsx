@@ -44,6 +44,8 @@ function PullRow({ pull }: { pull: PlatformPull }) {
         src={pull.image}
         alt=""
         className="size-12 shrink-0 rounded-lg border border-border object-cover"
+        loading="lazy"
+        decoding="async"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="truncate text-sm font-medium text-foreground">

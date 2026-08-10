@@ -73,6 +73,8 @@ export default function OrdersPage() {
                       src={item.image}
                       alt=""
                       className="size-8 rounded-md border border-border object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="flex flex-col">
                       <span className="max-w-40 truncate text-xs font-medium text-foreground">

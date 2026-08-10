@@ -300,6 +300,8 @@ export default function PacksPage() {
                   src={activePack.image}
                   alt={`${activePack.name} booster pack`}
                   className="size-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-10">

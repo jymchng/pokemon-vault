@@ -34,6 +34,8 @@ export function ActivityItem({
           src={event.image}
           alt=""
           className="size-12 shrink-0 rounded-lg border border-border object-cover"
+          loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-secondary">

@@ -158,6 +158,8 @@ export default function SetDetailPage({
                 src={card.image}
                 alt={card.name}
                 className="aspect-[2.5/3.5] w-full rounded-xl border border-border object-cover"
+                loading="lazy"
+                decoding="async"
               />
               <div className="flex flex-col gap-0.5 px-1 pb-1">
                 <p className="truncate text-sm font-semibold text-foreground">
