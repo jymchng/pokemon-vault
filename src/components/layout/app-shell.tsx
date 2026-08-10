@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { MobileNav } from "./mobile-nav";
+import { MobileNavDrawer } from "./mobile-nav-drawer";
 import { Footer } from "./footer";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { SearchOverlay } from "@/components/navigation/search-overlay";
@@ -32,6 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
       <MobileNav />
+      <MobileNavDrawer />
       <CartDrawer />
       <SearchOverlay />
       <Toaster position="bottom-right" richColors />

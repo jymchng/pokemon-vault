@@ -61,17 +61,19 @@ export function TopBar() {
       {/* Search pill */}
       <button
         onClick={() => setSearchOpen(true)}
-        className="group flex h-9 w-full max-w-xs items-center gap-2 rounded-full border border-border bg-surface/60 px-3.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="group flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-surface/60 px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60 sm:max-w-xs sm:px-3.5"
         aria-label="Open search"
       >
         <Search className="size-3.5 text-muted-foreground" />
-        <span className="flex-1 truncate">Search Pokémon, cards, sets...</span>
-        <kbd className="rounded border border-border bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+        <span className="hidden flex-1 truncate sm:block">
+          Search Pokémon, cards, sets...
+        </span>
+        <kbd className="hidden rounded border border-border bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:block">
           /
         </kbd>
       </button>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         {/* Notifications */}
         <Button
           variant="ghost"

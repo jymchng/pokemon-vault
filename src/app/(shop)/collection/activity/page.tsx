@@ -94,16 +94,16 @@ export default function ActivityPage() {
       >
         <Link
           href="/collection"
-          className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Cards
         </Link>
-        <span className="border-b-2 border-primary pb-2 text-sm font-semibold text-foreground">
+        <span className="border-b-2 border-primary pb-2 text-xs font-medium text-foreground">
           Activity
         </span>
         <Link
           href="/collection/shipping"
-          className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Shipping
         </Link>

@@ -311,18 +311,18 @@ export default function CollectionPage() {
         role="tablist"
         aria-label="Collection sections"
       >
-        <span className="border-b-2 border-primary pb-2 text-sm font-semibold text-foreground">
+        <span className="border-b-2 border-primary pb-2 text-xs font-medium text-foreground">
           Cards
         </span>
         <Link
           href="/collection/activity"
-          className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Activity
         </Link>
         <Link
           href="/collection/shipping"
-          className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Shipping
         </Link>
@@ -347,7 +347,7 @@ export default function CollectionPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by Pokémon, set, or card number"
-            className="h-10 rounded-xl bg-surface pl-9"
+            className="h-[38px] rounded-lg bg-surface pl-9"
             aria-label="Search your collection"
           />
         </div>

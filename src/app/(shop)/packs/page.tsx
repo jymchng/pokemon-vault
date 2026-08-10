@@ -170,7 +170,7 @@ function PackInfoPanel({
         </div>
       </div>
 
-      <Button size="lg" onClick={handleBuy} className="w-full">
+      <Button onClick={handleBuy} className="w-full">
         <Package /> Buy {quantity > 1 ? `${quantity} Packs` : "Pack"}
       </Button>
 

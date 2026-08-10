@@ -11,6 +11,13 @@
    ─────────────────────────────────────────────── */
 
 @theme inline {
+  /* Shadows */
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --shadow-popover: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --shadow-hover-lift: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-glow-accent: 0 0 20px rgba(245, 197, 66, 0.15);
+
   /* Semantic color mapping (shadcn compatible) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -78,13 +85,6 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-
-  /* Shadows */
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
-  --shadow-popover: 0 8px 30px rgba(0, 0, 0, 0.35);
-  --shadow-hover-lift: 0 8px 24px rgba(0, 0, 0, 0.25);
-  --shadow-glow-accent: 0 0 20px rgba(245, 197, 66, 0.15);
 
   /* Animations */
   --animate-fade-in: fade-in 0.25s ease-out forwards;
@@ -257,6 +257,26 @@
     );
     transform: translateX(-100%);
     animation: shimmer 2s ease-in-out infinite;
+  }
+
+  /* Custom shadow utilities (Tailwind v4 @theme inline doesn't emit shadow-* rules) */
+  .shadow-elevated {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  .shadow-modal {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .shadow-popover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  }
+  .shadow-hover-lift {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+  .shadow-glow-accent {
+    box-shadow: 0 0 20px rgba(245, 197, 66, 0.15);
+  }
+  .hover\:shadow-elevated:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
   /* Hide scrollbar for carousels */

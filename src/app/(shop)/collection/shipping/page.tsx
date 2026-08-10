@@ -149,17 +149,17 @@ export default function ShippingPage() {
         >
           <Link
             href="/collection"
-            className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Cards
           </Link>
           <Link
             href="/collection/activity"
-            className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Activity
           </Link>
-          <span className="border-b-2 border-primary pb-2 text-sm font-semibold text-foreground">
+          <span className="border-b-2 border-primary pb-2 text-xs font-medium text-foreground">
             Shipping
           </span>
         </div>
@@ -202,17 +202,17 @@ export default function ShippingPage() {
       >
         <Link
           href="/collection"
-          className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Cards
         </Link>
         <Link
           href="/collection/activity"
-          className="border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Activity
         </Link>
-        <span className="border-b-2 border-primary pb-2 text-sm font-semibold text-foreground">
+        <span className="border-b-2 border-primary pb-2 text-xs font-medium text-foreground">
           Shipping
         </span>
       </div>
