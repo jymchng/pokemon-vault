@@ -1,0 +1,77 @@
+# ─────────────────────────────────────────────────────────────
+# Netlify deployment configuration — Pokémon Vault
+#
+# Framework: Next.js 16 (App Router) with TypeScript
+# Database:  SQLite via Prisma (local dev; see IMPORTANT note below)
+#
+# IMPORTANT — SQLite on Netlify:
+#   Netlify's build environment is ephemeral and its filesystem is
+#   read-only at runtime for the static output. A local SQLite file
+#   (dev.db) will NOT persist between builds or function invocations.
+#   For a production deployment you should either:
+#     1. Use this config for a demo/preview deploy where the seeded
+#        SQLite DB is committed/bundled and treated as read-only demo
+#        data, OR
+#     2. Replace the data layer with a persistent database (Postgres
+#        via Prisma) before going to production.
+#   The app already falls back to static mock data if the DB is
+#   unavailable, so the UI still renders without dev.db.
+# ─────────────────────────────────────────────────────────────
+
+[build]
+  # Generate the Prisma Client, then build Next.js.
+  # `prisma generate` must run before `next build` so the generated
+  # client (src/generated/prisma) exists in the build output.
+  command = "npm run db:generate && npm run build"
+  publish = ".next"
+
+# ─────────────────────────────────────────────────────────────
+# Netlify Functions — the app serves data through Next.js route
+# handlers (app/api/data) which are compiled into the server build,
+# not standalone functions. These settings keep native modules
+# (better-sqlite3) external so they are not incorrectly bundled.
+# ─────────────────────────────────────────────────────────────
+[functions]
+  node_bundler = "esbuild"
+  # Native/Node-only modules that must not be bundled into browser or
+  # function bundles.
+  external_node_modules = ["better-sqlite3", "@prisma/client", "@prisma/adapter-better-sqlite3", "@prisma/client-engine-runtime", "@prisma/driver-adapter-utils"]
+  included_files = ["prisma/dev.db", "prisma/schema.prisma"]
+
+# ─────────────────────────────────────────────────────────────
+# Environment
+# ─────────────────────────────────────────────────────────────
+# Set these in the Netlify UI (Site settings → Environment variables):
+#   DATABASE_URL="file:./prisma/dev.db"   (server-only)
+#   NEXT_PUBLIC_MOCK_FALLBACK="false"      (client-safe; opt-in mock fallback)
+[build.environment]
+  NODE_VERSION = "22"
+  # Prisma 7 requires Node >=20.19 / 22.12 / 24 — Netlify default is
+  # often 18/20, so pin an LTS that satisfies Prisma.
+
+# ─────────────────────────────────────────────────────────────
+# Redirects & headers
+# ─────────────────────────────────────────────────────────────
+[[redirects]]
+  # Next.js App Router handles routing; ensure the root works.
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
