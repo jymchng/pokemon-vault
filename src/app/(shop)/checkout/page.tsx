@@ -11,10 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useRewardsStore } from "@/lib/store/rewards-store";
 import { useActivityStore } from "@/lib/store/activity-store";
+import { usePackInventoryStore } from "@/lib/store/pack-inventory-store";
+import { packs as catalogPacks } from "@/lib/data/packs";
 import { formatCurrency } from "@/lib/utils/format";
 import { toast } from "sonner";
 
 export default function CheckoutPage() {
+  const addPacksToInventory = usePackInventoryStore((s) => s.addPacks);
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
   const addXp = useRewardsStore((s) => s.addXp);
@@ -54,6 +57,15 @@ export default function CheckoutPage() {
         date: new Date().toISOString(),
         xp: Math.round(subtotal),
       });
+      // Purchased booster packs become unopened packs in the user's
+      // collection inventory (cart productId === pack slug for pack items).
+      const packSlugs = new Set(catalogPacks.map((p) => p.slug));
+      const purchasedPacks = items
+        .filter((i) => packSlugs.has(i.productId))
+        .map((i) => ({ slug: i.productId, quantity: i.quantity }));
+      if (purchasedPacks.length > 0) {
+        addPacksToInventory(purchasedPacks);
+      }
       clearCart();
       toast.success("Order placed successfully", {
         description: `You earned ${Math.round(subtotal)} XP`,

@@ -17,6 +17,7 @@ import { CardArt } from "@/components/cards/card-art";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { RewardProgress } from "@/components/rewards/reward-progress";
+import { UnopenedPacksSection } from "@/components/collection/unopened-packs-section";
 import { FilterPills, type FilterPill } from "@/components/ui/filter-pills";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -327,6 +328,9 @@ export default function CollectionPage() {
           Shipping
         </Link>
       </div>
+
+      {/* Unopened packs */}
+      <UnopenedPacksSection />
 
       {/* Highlights */}
       <CollectionHighlights onView={handleView} />

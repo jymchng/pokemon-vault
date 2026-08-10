@@ -8,6 +8,7 @@ import {
   Plus,
   Gift,
   Info,
+  Lock,
   Sparkles,
   ShieldCheck,
   ChevronLeft,
@@ -23,6 +24,15 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/format";
 import { useCartStore } from "@/lib/store/cart-store";
+import { usePackInventoryStore } from "@/lib/store/pack-inventory-store";
+import { PackOpenStage } from "@/components/packs/pack-open-stage";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { BoosterPack } from "@/lib/types";
 
@@ -225,8 +235,14 @@ export default function PacksPage() {
       packs[0],
     [activeSlug, packs],
   );
+  const [openingPack, setOpeningPack] = useState<BoosterPack | null>(null);
+  const inventoryPacks = usePackInventoryStore((s) => s.packs);
+  const ownedCount =
+    activePack === undefined
+      ? 0
+      : (inventoryPacks.find((p) => p.slug === activePack.slug)?.quantity ?? 0);
 
-  const activeIndex = packs.findIndex((p) => p.slug === activePack.slug);
+  const activeIndex = packs.findIndex((p) => p.slug === activePack?.slug);
   const selectRelative = (dir: -1 | 1) => {
     const next = (activeIndex + dir + packs.length) % packs.length;
     setActiveSlug(packs[next].slug);
@@ -323,6 +339,34 @@ export default function PacksPage() {
             {activePack.cardsPerPack} cards per pack ·{" "}
             {formatCurrency(activePack.price)}
           </p>
+
+          {/* Ownership-gated open */}
+          <div className="flex flex-col items-center gap-1.5">
+            <Button
+              size="sm"
+              onClick={() => setOpeningPack(activePack)}
+              disabled={ownedCount <= 0}
+            >
+              {ownedCount > 0 ? (
+                <>
+                  <Package /> Open Pack ({ownedCount})
+                </>
+              ) : (
+                <>
+                  <Lock /> No Packs Owned
+                </>
+              )}
+            </Button>
+            {ownedCount > 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                {ownedCount} pack{ownedCount === 1 ? "" : "s"} ready to open
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Buy this pack to unlock opening
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Pack info panel */}
@@ -405,6 +449,34 @@ export default function PacksPage() {
           Gift
         </Button>
       </section>
+
+      {/* Open pack dialog (ownership-gated) */}
+      <Dialog
+        open={openingPack !== null}
+        onOpenChange={(open) => {
+          if (!open) setOpeningPack(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="size-4 text-primary" />
+              {openingPack ? `Open ${openingPack.name}` : "Open Pack"}
+            </DialogTitle>
+            <DialogDescription>
+              {openingPack
+                ? `${openingPack.cardsPerPack} cards per pack — opening consumes 1 owned pack`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {openingPack && (
+            <PackOpenStage
+              pack={openingPack}
+              onDone={() => setOpeningPack(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

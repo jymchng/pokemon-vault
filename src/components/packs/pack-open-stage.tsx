@@ -6,6 +6,7 @@ import { Sparkles, Package } from "lucide-react";
 import { useCollectionStore } from "@/lib/store/collection-store";
 import { useActivityStore } from "@/lib/store/activity-store";
 import { useRewardsStore } from "@/lib/store/rewards-store";
+import { usePackInventoryStore } from "@/lib/store/pack-inventory-store";
 import { toast } from "sonner";
 import type { BoosterPack } from "@/lib/types";
 
@@ -140,6 +141,10 @@ export function PackOpenStage({
   const addCards = useCollectionStore((s) => s.addCards);
   const addEvent = useActivityStore((s) => s.addEvent);
   const addXp = useRewardsStore((s) => s.addXp);
+  const consumePack = usePackInventoryStore((s) => s.consumePack);
+  const inventoryPacks = usePackInventoryStore((s) => s.packs);
+  const ownedCount =
+    inventoryPacks.find((p) => p.slug === pack.slug)?.quantity ?? 0;
 
   const generatePulls = (): PackPull[] => {
     const names = PULL_NAMES[pack.name] ?? PULL_NAMES["Pokémon 151"];
@@ -159,6 +164,8 @@ export function PackOpenStage({
   };
 
   const openPack = () => {
+    if (ownedCount <= 0) return;
+    consumePack(pack.slug);
     setPulls(generatePulls());
     setRevealedIndex(0);
     setPhase("opening");
@@ -219,13 +226,16 @@ export function PackOpenStage({
           </div>
           <button
             onClick={openPack}
-            className="group inline-flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[#e8b93a] outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            disabled={ownedCount <= 0}
+            className="group inline-flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[#e8b93a] outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Package className="size-4 transition-transform group-hover:-rotate-12" />
-            Open Pack
+            {ownedCount > 0 ? "Open Pack" : "No Packs Left"}
           </button>
           <p className="text-xs text-muted-foreground">
-            Playful simulated collection feature — 5 cards per pack
+            {ownedCount > 0
+              ? `${ownedCount} pack${ownedCount === 1 ? "" : "s"} remaining — 5 cards per pack`
+              : "You don't own this pack yet — buy it to unlock opening"}
           </p>
         </>
       )}
@@ -259,7 +269,7 @@ export function PackOpenStage({
 
       {(phase === "revealing" || phase === "done") && (
         <div className="flex min-h-64 flex-col items-center justify-center gap-5">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             {pulls.map((pull, i) => (
               <div key={pull.id} className="relative">
                 <AnimatePresence>
