@@ -52,10 +52,10 @@ function LatestPullsList({ pulls }: { pulls: typeof latestPulls }) {
       {pulls.map((pull) => (
         <div
           key={pull.id}
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
+          className="flex items-center gap-3 rounded-[1rem] border border-border bg-elevated p-3"
         >
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-            <Sparkles className="size-4 text-primary" />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-lime/10">
+            <Sparkles className="size-4 text-accent-lime" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <p className="truncate text-sm font-medium text-foreground">
@@ -272,7 +272,7 @@ export default function PacksPage() {
       />
 
       {/* Pack tier strip (reference carousel nav) */}
-      <div className="scrollbar-none -mx-5 flex items-center gap-2 overflow-x-auto px-5 pb-1">
+      <div className="subnav-strip -mx-5 px-5 pb-1">
         {packs.map((p) => (
           <button
             key={p.slug}
@@ -281,9 +281,9 @@ export default function PacksPage() {
               setQuantity(1);
             }}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+              "flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
               activeSlug === p.slug
-                ? "border-primary/50 bg-secondary text-primary"
+                ? "border-accent-lime/50 bg-accent-lime/10 text-accent-lime"
                 : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground",
             )}
             aria-pressed={activeSlug === p.slug}

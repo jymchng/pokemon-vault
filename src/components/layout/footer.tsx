@@ -71,6 +71,14 @@ export function Footer() {
           </p>
         </div>
       </div>
+      {/* Reference back-to-top (sticky, appears on scroll) */}
+      <a
+        href="#top"
+        className="back-to-top hidden rounded-full border border-border bg-elevated px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:flex"
+        aria-label="Back to top"
+      >
+        Back to top ↑
+      </a>
     </footer>
   );
 }

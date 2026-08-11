@@ -88,8 +88,8 @@ export default function Home() {
   return (
     <div className="flex flex-col gap-12 pb-6">
       {/* Hero */}
-      <section className="relative flex min-h-[340px] flex-col items-center justify-center gap-5 overflow-hidden rounded-3xl border border-border bg-surface px-6 py-16 text-center">
-        <div className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-primary/10 blur-3xl" />
+      <section className="relative flex min-h-[340px] flex-col items-center justify-center gap-5 overflow-hidden rounded-[1rem] border border-border bg-surface px-6 py-16 text-center">
+        <div className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-accent-lime/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-24 size-72 rounded-full bg-accent-blue/10 blur-3xl" />
         <div className="relative flex size-14 items-center justify-center rounded-2xl bg-secondary">
           <Sparkles className="size-7 text-primary" />

@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TopBar />
       <div
         className={cn(
-          "flex min-h-screen flex-col pt-14 transition-[padding] duration-200 md:pl-56",
+          "flex min-h-screen flex-col pt-12 transition-[padding] duration-200 md:pt-14 md:pl-56",
           collapsed && "md:pl-14",
         )}
       >

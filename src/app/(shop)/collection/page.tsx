@@ -306,24 +306,24 @@ export default function CollectionPage() {
       {/* Stats row */}
       <CollectionStats ownedCards={ownedCards} />
 
-      {/* Tabs */}
+      {/* Tabs — reference pill tabs with lime active */}
       <div
-        className="flex items-center gap-6 border-b border-border"
+        className="inline-flex w-fit items-center gap-1 rounded-full bg-muted p-1"
         role="tablist"
         aria-label="Collection sections"
       >
-        <span className="border-b-2 border-primary pb-2 text-xs font-medium text-foreground">
+        <span className="inline-flex h-7 items-center justify-center rounded-full bg-accent-lime/10 px-3 text-xs font-medium whitespace-nowrap text-accent-lime">
           Cards
         </span>
         <Link
           href="/collection/activity"
-          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex h-7 items-center justify-center rounded-full px-3 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
         >
           Activity
         </Link>
         <Link
           href="/collection/shipping"
-          className="border-b-2 border-transparent pb-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex h-7 items-center justify-center rounded-full px-3 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
         >
           Shipping
         </Link>

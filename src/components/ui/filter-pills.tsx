@@ -28,7 +28,7 @@ export function FilterPills({
         <button
           key={pill.key}
           onClick={() => onRemove(pill.key)}
-          className="group inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-elevated px-3 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+          className="group inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-elevated px-3 text-xs font-medium text-foreground transition-colors hover:border-accent-lime/40 hover:text-accent-lime outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           aria-label={`Remove filter ${pill.label}`}
         >
           {pill.label}

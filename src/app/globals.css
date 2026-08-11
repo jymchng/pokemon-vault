@@ -61,6 +61,13 @@
   --color-success: #42c978;
   --color-accent-purple: #a78bfa;
 
+  /* Reference interaction accent (jup.ag/gacha lime) — used for CTAs,
+     active tabs, hover washes, and focus rings. Gold remains the brand accent. */
+  --color-lime: var(--accent-lime);
+  --color-lime-foreground: var(--accent-lime-foreground);
+  --color-accent-lime: var(--accent-lime);
+  --color-accent-lime-foreground: var(--accent-lime-foreground);
+
   /* Rarity */
   --color-rarity-common: #969ba6;
   --color-rarity-uncommon: #42c978;
@@ -86,6 +93,17 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
+  /* Reference shape tokens: fully-rounded pills and 16px card radius */
+  --radius-pill: 9999px;
+  --radius-card: 1rem;
+
+  /* Reference flat-surface shadow (cards use 1px borders, near-flat elevation) */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.28);
+
+  /* Reference drawer/backdrop motion */
+  --ease-jupiter: cubic-bezier(0.32, 0.72, 0, 1);
+
   /* Animations */
   --animate-fade-in: fade-in 0.25s ease-out forwards;
   --animate-fade-up: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -100,15 +118,15 @@
    ─────────────────────────────────────────────── */
 :root,
 .dark {
-  --background: #08090b;
+  --background: #090d10;
   --foreground: #f5f6f8;
 
   --surface: #101216;
-  --elevated: #16191f;
+  --elevated: #1d232b;
 
   --card: #101216;
   --card-foreground: #f5f6f8;
-  --popover: #16191f;
+  --popover: #1d232b;
   --popover-foreground: #f5f6f8;
 
   --primary: #f5c542;
@@ -116,16 +134,16 @@
   --secondary: rgba(245, 197, 66, 0.12);
   --secondary-foreground: #f5c542;
   --muted: #16191f;
-  --muted-foreground: #969ba6;
+  --muted-foreground: #8b93a5;
   --accent: #16191f;
   --accent-foreground: #f5f6f8;
 
   --destructive: #e94545;
   --destructive-foreground: #ffffff;
 
-  --border: #252932;
+  --border: #262e36;
   --input: #2e343f;
-  --ring: #f5c542;
+  --ring: #c6f24c;
 
   --chart-1: #f5c542;
   --chart-2: #4c9aff;
@@ -135,14 +153,18 @@
 
   --radius: 0.625rem;
 
+  /* Reference lime interaction accent (approx #c6f24c) */
+  --accent-lime: #c6f24c;
+  --accent-lime-foreground: #101307;
+
   --sidebar: #0d0f12;
-  --sidebar-foreground: #969ba6;
+  --sidebar-foreground: #8b93a5;
   --sidebar-primary: #f5c542;
   --sidebar-primary-foreground: #1a1503;
   --sidebar-accent: rgba(245, 197, 66, 0.08);
   --sidebar-accent-foreground: #f5f6f8;
-  --sidebar-border: #252932;
-  --sidebar-ring: #f5c542;
+  --sidebar-border: #262e36;
+  --sidebar-ring: #c6f24c;
 }
 
 /* ───────────────────────────────────────────────
@@ -286,6 +308,65 @@
   }
   .scrollbar-none::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Reference-aligned flat card surface (radius 16px, 1px border, near-flat) */
+  .surface-card {
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    background-color: var(--elevated);
+    box-shadow: var(--shadow-card);
+  }
+  .surface-card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Reference pill controls */
+  .pill {
+    border-radius: var(--radius-pill);
+  }
+
+  /* Reference hover wash (lime @ ~5%) */
+  .hover-wash {
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .hover-wash:hover {
+    background-color: rgba(198, 242, 76, 0.08);
+  }
+
+  /* Reference mobile sub-nav: horizontal scroll pill strip */
+  .subnav-strip {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+  }
+  .subnav-strip::-webkit-scrollbar {
+    display: none;
+  }
+  .subnav-strip > * {
+    flex: 0 0 auto;
+  }
+
+  /* Reference drawer/backdrop motion */
+  .backdrop-fade {
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-jupiter);
+  }
+  .backdrop-fade[data-open="true"] {
+    opacity: 1;
+  }
+
+  /* Back-to-top (reference sticky pattern) */
+  .back-to-top {
+    position: sticky;
+    bottom: 0.5rem;
+    margin-left: auto;
+    z-index: 40;
   }
 }
 

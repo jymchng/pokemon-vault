@@ -34,15 +34,16 @@ export function MobileNavDrawer() {
       aria-modal="true"
       aria-label="Navigation menu"
     >
-      {/* Backdrop */}
+      {/* Backdrop — reference motion: opacity 0.3s cubic-bezier(0.32,0.72,0,1) */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        data-open="true"
+        className="backdrop-fade absolute inset-0 bg-black/20"
         onClick={() => setOpen(false)}
       />
-      {/* Drawer */}
-      <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-sidebar shadow-modal">
+      {/* Drawer — reference springy slide-in */}
+      <div className="animate-[fade-up_0.3s_var(--ease-jupiter)] absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-sidebar shadow-modal">
         {/* Header */}
-        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+        <div className="flex h-12 items-center justify-between border-b border-border px-4">
           <Logo />
           <button
             onClick={() => setOpen(false)}

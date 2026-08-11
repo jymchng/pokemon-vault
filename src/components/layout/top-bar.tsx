@@ -46,7 +46,7 @@ export function TopBar() {
   const signOut = useAuthStore((s) => s.signOut);
 
   return (
-    <header className="fixed top-0 right-0 left-0 z-40 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-md md:left-56">
+    <header className="fixed top-0 right-0 left-0 z-40 flex h-12 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-md md:h-14 md:left-56">
       {/* Mobile menu + logo */}
       <Button
         variant="ghost"
@@ -64,7 +64,7 @@ export function TopBar() {
       {/* Search pill */}
       <button
         onClick={() => setSearchOpen(true)}
-        className="group flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-surface/60 px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60 sm:max-w-xs sm:px-3.5"
+        className="group flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-surface/60 px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60 sm:max-w-xs sm:px-3.5"
         aria-label="Open search"
       >
         <Search className="size-3.5 text-muted-foreground" />

@@ -80,7 +80,7 @@ export function Sidebar() {
                       collapsed ? "justify-center px-0" : "px-2.5",
                       active
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground hover:bg-white/5 hover:text-foreground",
+                        : "text-sidebar-foreground hover:bg-accent-lime/5 hover:text-foreground",
                       "focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
                     )}
                   >
@@ -116,7 +116,7 @@ export function Sidebar() {
         <button
           onClick={toggle}
           className={cn(
-            "flex h-8 w-full items-center gap-2.5 rounded-lg text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+            "flex h-8 w-full items-center gap-2.5 rounded-lg text-xs font-medium text-muted-foreground transition-colors hover:bg-accent-lime/5 hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
             collapsed ? "justify-center px-0" : "px-2.5",
           )}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
