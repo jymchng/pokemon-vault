@@ -1,12 +1,15 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { hashPassword, verifyPassword } from "../common/password.policy";
 import { EmailService } from "../email/email.service";
+import { AbuseProtectionService } from "../common/abuse-protection.service";
 import { AuthRepository } from "./auth.repository";
 import {
   AuthResult,
@@ -38,6 +41,7 @@ export class AuthService {
   constructor(
     private readonly repo: AuthRepository,
     private readonly email: EmailService,
+    private readonly abuse: AbuseProtectionService,
   ) {}
 
   private get jwtSecret(): string {
@@ -157,6 +161,14 @@ export class AuthService {
     password: string,
     meta: { device?: string; ip?: string; userAgent?: string },
   ): Promise<AuthResult> {
+    // §90: brute-force protection — per-IP sliding window (extension point:
+    // add per-account rules by using `login:${email}` as the actorKey).
+    if (meta.ip) {
+      const blocked = await this.abuse.checkAndRecord({
+        scope: "login", actorKey: meta.ip, limit: 10, windowSeconds: 300,
+      });
+      if (blocked) throw new HttpException("Too many login attempts — try again later", HttpStatus.TOO_MANY_REQUESTS);
+    }
     const user = await this.repo.findUserByEmailWithPassword(email.toLowerCase());
     if (!user) throw new UnauthorizedException("Invalid credentials");
     const valid = await verifyPassword(user.passwordHash, password);

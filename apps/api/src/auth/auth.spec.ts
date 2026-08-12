@@ -11,6 +11,7 @@ import { AuthUserRow } from "./auth.types";
 import { sha256Hex, signJwt, verifyJwt } from "./crypto";
 import { EmailService } from "../email/email.service";
 import { CorrelationService } from "../common/correlation.service";
+import { AbuseProtectionService } from "../common/abuse-protection.service";
 
 const fakeEmail = { sendWelcome: async () => ({}) } as unknown as EmailService;
 
@@ -121,6 +122,7 @@ async function makeService(repo: FakeAuthRepository) {
       { provide: AuthRepository, useValue: repo },
       { provide: EmailService, useValue: fakeEmail },
       CorrelationService,
+      { provide: AbuseProtectionService, useValue: { checkAndRecord: async () => false, record: async () => {}, count: async () => 0 } },
     ],
   }).compile();
   return { service: moduleRef.get(AuthService), ctrl: moduleRef.get(AuthController) };

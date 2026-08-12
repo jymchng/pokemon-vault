@@ -72,7 +72,9 @@ export class RewardsController {
   @HttpCode(HttpStatus.CREATED)
   async redeem(@Req() req: any, @Body() body: unknown) {
     const parsed = RedeemSchema.parse(body);
-    return { data: await this.service.redeem(req.user.id, parsed.rewardId) };
+    // §91: Idempotency-Key header → safe client retries never double-redeem.
+    const idemKey = req.headers?.["idempotency-key"];
+    return { data: await this.service.redeem(req.user.id, parsed.rewardId, idemKey) };
   }
 
   @Post("xp")

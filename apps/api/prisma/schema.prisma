@@ -811,3 +811,28 @@ model WayToWin {
   title String
   body  String
 }
+
+model IdempotencyRecord {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  scope     String // e.g. checkout, payment, refund, reward-redemption, order
+  userId    String?
+  status    String   @default("IN_PROGRESS") // IN_PROGRESS | SUCCESS | FAILED
+  requestHash String? // sha256 of the request body (mismatch → 409)
+  response  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, userId])
+  @@index([key])
+}
+
+model AbuseEvent {
+  id        String   @id @default(uuid())
+  scope     String
+  actorKey  String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([scope, actorKey, createdAt])
+}

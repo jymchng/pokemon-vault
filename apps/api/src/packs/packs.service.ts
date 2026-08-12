@@ -1,12 +1,15 @@
 import { randomInt } from "node:crypto";
 import {
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { OpenPackDto, PackOpeningDto } from "./packs.dto";
 import { PacksRepository, RANDOMIZATION_VERSION } from "./packs.repository";
 import { MetricsService } from "../observability/metrics.service";
+import { AbuseProtectionService } from "../common/abuse-protection.service";
 
 /**
  * §34-37 Pack opening:
@@ -23,6 +26,7 @@ export class PacksService {
   constructor(
     private readonly repo: PacksRepository,
     private readonly metrics: MetricsService,
+    private readonly abuse: AbuseProtectionService,
   ) {}
 
   async list() {
@@ -39,6 +43,13 @@ export class PacksService {
    * Open a pack. Server-determined result; secure randomness; idempotent.
    */
   async open(packRef: string, userId: string, input: OpenPackDto): Promise<PackOpeningDto> {
+    // §90: pack-opening abuse — per-user sliding window (extension point).
+    const blocked = await this.abuse.checkAndRecord({
+      scope: "pack-opening", actorKey: userId, limit: 20, windowSeconds: 300,
+    });
+    if (blocked) {
+      throw new HttpException("Too many pack openings — try again later", HttpStatus.TOO_MANY_REQUESTS);
+    }
     // Idempotency: replay returns the original opening.
     const existing = await this.repo.findOpeningByIdempotencyKey(input.idempotencyKey);
     if (existing) return existing;

@@ -10,6 +10,7 @@ import { CartService } from "../cart/cart.service";
 import { RewardsService } from "../rewards/rewards.service";
 import { EmailService } from "../email/email.service";
 import { MetricsService } from "../observability/metrics.service";
+import { IdempotencyService } from "../common/idempotency.service";
 
 export const RESERVATION_TTL_MS = 15 * 60 * 1000;
 
@@ -40,6 +41,7 @@ export class CheckoutService {
     private readonly rewardsService: RewardsService,
     private readonly email: EmailService,
     private readonly metrics: MetricsService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   /**
@@ -81,7 +83,19 @@ export class CheckoutService {
   }
 
   /** Confirm payment → finalize: commit inventory, create order, award rewards. */
-  async pay(orderId: string, userId: string, input: PayDto) {
+  async pay(orderId: string, userId: string, input: PayDto, idempotencyKey?: string) {
+    // §91: idempotent payment confirmation — safe client retries never double-pay.
+    if (idempotencyKey) {
+      const { data } = await this.idempotency.run(
+        "payment", idempotencyKey, userId, { orderId, ...input },
+        () => this.payOnce(orderId, userId, input),
+      );
+      return data;
+    }
+    return this.payOnce(orderId, userId, input);
+  }
+
+  private async payOnce(orderId: string, userId: string, input: PayDto) {
     const order = await this.repo.findOrderForUser(orderId, userId);
     if (!order) throw new NotFoundException("Order not found");
     try {

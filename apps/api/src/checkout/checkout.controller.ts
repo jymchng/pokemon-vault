@@ -45,7 +45,8 @@ export class CheckoutController {
   @HttpCode(HttpStatus.OK)
   async pay(@Req() req: any, @Param("orderId") orderId: string, @Body() body: unknown) {
     const parsed = PaySchema.parse(body) as PayDto;
-    return { data: await this.service.pay(orderId, req.user.id, parsed) };
+    const idemKey = req.headers?.["idempotency-key"];
+    return { data: await this.service.pay(orderId, req.user.id, parsed, idemKey) };
   }
 
   @Post(":orderId/cancel")

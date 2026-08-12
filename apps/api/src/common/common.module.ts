@@ -2,6 +2,8 @@ import { Global, Module, MiddlewareConsumer } from "@nestjs/common";
 import { RequestIdMiddleware } from "./request-id.middleware";
 import { CorrelationService } from "./correlation.service";
 import { StructuredLogger } from "./structured-logger";
+import { IdempotencyService } from "./idempotency.service";
+import { AbuseProtectionService } from "./abuse-protection.service";
 
 /**
  * Global cross-cutting concerns (§65-66): request correlation (request_id +
@@ -13,6 +15,8 @@ import { StructuredLogger } from "./structured-logger";
 @Module({
   providers: [
     CorrelationService,
+    IdempotencyService,
+    AbuseProtectionService,
     {
       provide: StructuredLogger,
       // Factory injection — the constructor's service-name string must not be
@@ -22,7 +26,7 @@ import { StructuredLogger } from "./structured-logger";
       inject: [CorrelationService],
     },
   ],
-  exports: [CorrelationService, StructuredLogger],
+  exports: [CorrelationService, StructuredLogger, IdempotencyService, AbuseProtectionService],
 })
 export class CommonModule {
   configure(consumer: MiddlewareConsumer) {

@@ -12,12 +12,14 @@ import {
 } from "./rewards.dto";
 import { RewardsRepository } from "./rewards.repository";
 import { MetricsService } from "../observability/metrics.service";
+import { IdempotencyService } from "../common/idempotency.service";
 
 @Injectable()
 export class RewardsService {
   constructor(
     private readonly repo: RewardsRepository,
     private readonly metrics: MetricsService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   // ---- Account / XP ----
@@ -57,7 +59,19 @@ export class RewardsService {
 
   // ---- Redemption (§42 atomic) ----
 
-  async redeem(userId: string, rewardId: string) {
+  async redeem(userId: string, rewardId: string, idempotencyKey?: string) {
+    // §91: idempotent redemption — safe client retries never double-redeem.
+    if (idempotencyKey) {
+      const { data } = await this.idempotency.run(
+        "reward-redemption", idempotencyKey, userId, { rewardId },
+        () => this.redeemOnce(userId, rewardId),
+      );
+      return data;
+    }
+    return this.redeemOnce(userId, rewardId);
+  }
+
+  private async redeemOnce(userId: string, rewardId: string) {
     try {
       const result = await this.repo.redeemReward(userId, rewardId);
       this.metrics.recordRewardRedeemed(); // §67
