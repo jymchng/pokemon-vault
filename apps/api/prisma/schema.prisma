@@ -44,6 +44,7 @@ model User {
 
   sessions       AuthSession[]
   refreshTokens  RefreshToken[]
+  oneTimeTokens  OneTimeToken[]
   carts          Cart[]
   orders         Order[]
   addresses      Address[]
@@ -63,17 +64,19 @@ model User {
 }
 
 model AuthSession {
-  id        String   @id @default(uuid())
-  userId    String
-  token     String   @unique
-  device    String?
-  ip        String?
-  userAgent String?
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
+  id         String    @id @default(uuid())
+  userId     String
+  token      String    @unique
+  device     String?
+  ip         String?
+  userAgent  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
 
   @@index([userId])
   @@index([expiresAt])
@@ -82,14 +85,38 @@ model AuthSession {
 model RefreshToken {
   id        String   @id @default(uuid())
   userId    String
+  sessionId String?
   tokenHash String   @unique
+  familyId  String
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session AuthSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([familyId])
+}
+
+enum OneTimeTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model OneTimeToken {
+  id         String             @id @default(uuid())
+  userId     String
+  purpose    OneTimeTokenPurpose
+  tokenHash  String             @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
 }
 
 // ── Catalog: Sets, Cards, Grading ──────────────────────────────────────────
