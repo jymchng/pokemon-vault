@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
 import { OpenPackSchema, OpenPackDto } from "./packs.dto";
+import { Throttle } from "@nestjs/throttler";
 import { PacksService } from "./packs.service";
 
 /**
@@ -50,6 +51,7 @@ export class PacksController {
 
   @Post(":slugOrId/open")
   @UseGuards(AuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   async open(@Req() req: any, @Param("slugOrId") slugOrId: string, @Body() body: unknown) {
     const parsed = OpenPackSchema.parse(body) as OpenPackDto;

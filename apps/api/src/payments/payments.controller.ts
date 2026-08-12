@@ -14,6 +14,7 @@ import {
 import { AuthGuard } from "../auth/auth.guard";
 import { RolesGuard } from "../common/roles.guard";
 import { Roles } from "../common/roles.decorator";
+import { Throttle } from "@nestjs/throttler";
 import { PaymentsService } from "./payments.service";
 
 /**
@@ -29,6 +30,7 @@ export class PaymentsController {
   constructor(private readonly service: PaymentsService) {}
 
   @Post("webhooks/stripe")
+  @Throttle({ default: { limit: 120, ttl: 60_000 } }) // §52 — generous but bounded
   @HttpCode(HttpStatus.OK)
   async stripeWebhook(
     @Req() req: any,

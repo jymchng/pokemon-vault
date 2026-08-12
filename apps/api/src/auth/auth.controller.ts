@@ -29,6 +29,7 @@ import {
   parseCookies,
   setCookie,
 } from "./cookies";
+import { Throttle } from "@nestjs/throttler";
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,
@@ -113,6 +114,7 @@ export class AuthController {
   }
 
   @Post("register")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() body: unknown, @Req() req: any, @Res() res: any) {
     this.assertOrigin(req); // login-CSRF defense
@@ -126,6 +128,7 @@ export class AuthController {
   }
 
   @Post("login")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: unknown, @Req() req: any, @Res() res: any) {
     this.assertOrigin(req); // login-CSRF defense
@@ -190,6 +193,7 @@ export class AuthController {
   }
 
   @Post("forgot-password")
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   async forgotPassword(@Body() body: unknown) {
     const parsed = ForgotPasswordSchema.parse(body);
@@ -198,6 +202,7 @@ export class AuthController {
   }
 
   @Post("reset-password")
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() body: unknown) {
     const parsed = ResetPasswordSchema.parse(body);

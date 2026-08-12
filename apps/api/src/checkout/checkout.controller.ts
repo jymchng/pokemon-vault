@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
+import { Throttle } from "@nestjs/throttler";
 import { CheckoutDto, CheckoutSchema, PayDto, PaySchema } from "./checkout.dto";
 import { CheckoutService } from "./checkout.service";
 
@@ -26,6 +27,7 @@ export class CheckoutController {
   constructor(private readonly service: CheckoutService) {}
 
   @Post()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
   async start(@Req() req: any, @Body() body: unknown) {
     const parsed = CheckoutSchema.parse(body) as CheckoutDto;
@@ -39,6 +41,7 @@ export class CheckoutController {
   }
 
   @Post(":orderId/pay")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async pay(@Req() req: any, @Param("orderId") orderId: string, @Body() body: unknown) {
     const parsed = PaySchema.parse(body) as PayDto;
