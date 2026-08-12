@@ -1,5 +1,11 @@
-# Dependabot (§77): automated dependency updates — pnpm (npm ecosystem) +
-# GitHub Actions. Weekly digest, low noise.
+# Dependabot (§77, §83): automated dependency updates — pnpm (npm ecosystem)
+# + GitHub Actions. Weekly digest, low noise.
+#
+# No blind major auto-upgrades (§84): semver-major bumps are IGNORED by
+# Dependabot — they require a human to open the upgrade deliberately, review
+# the migration/breaking changes, and let the PR pipeline + staging prove it.
+# Minors/patches update automatically with versioning-strategy: increase
+# (respects the lockfile and keeps ranges accurate).
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -11,8 +17,12 @@ updates:
       timezone: "Etc/UTC"
     open-pull-requests-limit: 10
     labels: ["dependencies", "security"]
+    versioning-strategy: increase
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "npm"
     directory: "/apps/api"
     schedule:
@@ -22,8 +32,12 @@ updates:
       timezone: "Etc/UTC"
     open-pull-requests-limit: 10
     labels: ["dependencies", "security"]
+    versioning-strategy: increase
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "npm"
     directory: "/apps/worker"
     schedule:
@@ -33,8 +47,12 @@ updates:
       timezone: "Etc/UTC"
     open-pull-requests-limit: 10
     labels: ["dependencies", "security"]
+    versioning-strategy: increase
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
