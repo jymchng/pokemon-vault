@@ -1,6 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CheckoutItemDto } from "./checkout.dto";
+import { PaymentProvider } from "../payments/payment-provider.interface";
+import { PAYMENT_PROVIDER } from "../payments/payment-provider.token";
 
 export interface ReservationLine {
   productId: string;
@@ -17,7 +19,10 @@ export interface CheckoutResult {
 
 @Injectable()
 export class CheckoutRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+  ) {}
 
   /**
    * Full checkout pre-step: verify stock → reserve → create order + items +
@@ -115,11 +120,19 @@ export class CheckoutRepository {
         });
       }
 
-      // 4. Payment record (PENDING; provider is a test/stripe abstraction).
+      // 4. Payment record (PENDING) via the PaymentProvider abstraction —
+      // PAYMENT_PROVIDER env selects stripe (real signature flow) or test.
+      const intent = await this.provider.createPaymentIntent({
+        amount: subtotal,
+        currency: "USD",
+        idempotencyKey: `chk_${order.id}`,
+        orderNumber: order.orderNumber,
+      });
       await tx.payment.create({
         data: {
           orderId: order.id,
-          provider: "test",
+          provider: intent.provider,
+          providerRef: intent.providerRef,
           amount: subtotal,
           currency: "USD",
           status: "PENDING",
