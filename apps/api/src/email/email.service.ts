@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { QueueService } from "../queue/queue.service";
 import { EMAIL_PROVIDER, EmailMessage, EmailProvider } from "./email-provider.interface";
+import { CorrelationService } from "../common/correlation.service";
 
 /**
  * Email service (§44): builds templated messages and ENQUEUES them to the
@@ -12,6 +13,7 @@ export class EmailService {
   constructor(
     private readonly queue: QueueService,
     @Inject(EMAIL_PROVIDER) private readonly provider: EmailProvider,
+    private readonly correlation: CorrelationService,
   ) {}
 
   private enqueue(template: string, to: string, subject: string, vars: Record<string, string | undefined> = {}, extra: Record<string, unknown> = {}) {
@@ -24,7 +26,7 @@ export class EmailService {
       template,
       subject,
       text,
-      metadata: { ...vars, ...extra },
+      metadata: { ...vars, ...extra, requestId: this.correlation.get().requestId }, // §66
       idempotencyKey,
     };
     // Queue it — the worker sends it via the provider.

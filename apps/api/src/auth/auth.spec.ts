@@ -10,6 +10,7 @@ import { AuthRepository } from "./auth.repository";
 import { AuthUserRow } from "./auth.types";
 import { sha256Hex, signJwt, verifyJwt } from "./crypto";
 import { EmailService } from "../email/email.service";
+import { CorrelationService } from "../common/correlation.service";
 
 const fakeEmail = { sendWelcome: async () => ({}) } as unknown as EmailService;
 
@@ -119,6 +120,7 @@ async function makeService(repo: FakeAuthRepository) {
       AuthService,
       { provide: AuthRepository, useValue: repo },
       { provide: EmailService, useValue: fakeEmail },
+      CorrelationService,
     ],
   }).compile();
   return { service: moduleRef.get(AuthService), ctrl: moduleRef.get(AuthController) };

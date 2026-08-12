@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import "reflect-metadata";
 import helmet from "helmet";
 import { GlobalErrorFilter } from "./common/global-error.filter";
+import { CorrelationService } from "./common/correlation.service";
 import { parseCorsOrigins } from "./security/cors";
 
 /** Walk up from cwd to the pnpm workspace root (where .env lives). */
@@ -26,10 +27,14 @@ if (root) loadEnv({ path: resolve(root, ".env") });
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
+import { StructuredLogger } from "./common/structured-logger";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useGlobalFilters(new GlobalErrorFilter());
+  // Structured JSON logs (§65): all Nest loggers emit JSON with ts/level/
+  // service/environment/request_id/user_id; secrets are redacted.
+  app.useLogger(app.get(StructuredLogger));
+  app.useGlobalFilters(new GlobalErrorFilter(app.get(CorrelationService)));
   app.setGlobalPrefix("api/v1");
 
   // Security headers (§53): Helmet default (incl. X-Content-Type-Options:

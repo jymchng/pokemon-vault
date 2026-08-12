@@ -50,7 +50,60 @@ const JOB_OPTS = {
 };
 
 function log(level: "info" | "error" | "warn", msg: string, meta?: Record<string, unknown>) {
-  console.log(JSON.stringify({ ts: new Date().toISOString(), level, service: "worker", msg, ...(meta ?? {}) }));
+  console.log(
+    JSON.stringify(
+      redact({
+        ts: new Date().toISOString(),
+        level,
+        service: "worker",
+        environment: process.env.NODE_ENV || "development",
+        request_id: activeContext?.requestId ?? null,
+        user_id: activeContext?.userId ?? null,
+        message: msg,
+        ...(meta ?? {}),
+      }),
+    ),
+  );
+}
+
+/** Correlation context of the job currently being processed (§66). */
+let activeContext: { requestId: string | null; userId: string | null } | null = null;
+
+/** Sensitive keys that must never be logged (§65). */
+const SENSITIVE_KEYS = new Set([
+  "password", "pass", "pwd", "passphrase", "passwordhash", "hash", "token",
+  "accesstoken", "access_token", "refreshtoken", "refresh_token", "authorization",
+  "cookie", "sessionid", "cardnumber", "card_number", "cvv", "cvc", "pan", "secret",
+  "client_secret", "api_key", "apikey", "private_key", "webhook_secret", "jwt",
+  "stripe_secret", "database_url",
+]);
+
+const SECRET_VALUE_PATTERNS = [
+  /sk_(live|test)_[A-Za-z0-9]{16,}/g,
+  /AKIA[0-9A-Z]{16}/g,
+  /dp\.(pt|st)\.[A-Za-z0-9]{20,}/g,
+  /eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g,
+  /Bearer [A-Za-z0-9._-]{16,}/g,
+];
+
+/** Deep-redact a value for logs; never mutates the original. */
+function redact(value: unknown, depth = 0): unknown {
+  if (depth > 8) return "<max-depth>";
+  if (value === null || value === undefined) return value;
+  if (typeof value === "string") {
+    let out = value;
+    for (const re of SECRET_VALUE_PATTERNS) out = out.replace(re, "***");
+    return out;
+  }
+  if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
+  if (typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? "***" : redact(v, depth + 1);
+    }
+    return out;
+  }
+  return value;
 }
 
 /** Email handler (console provider locally; real providers plug in). */
@@ -104,9 +157,18 @@ async function main() {
 
   for (const queueName of QUEUES) {
     const worker = new Worker(queueName, async (job) => {
-      const handler = handlers[queueName];
-      if (!handler) throw new Error(`No handler for queue ${queueName}`);
-      await handler(job);
+      // §66: carry the originating request's correlation into worker logs.
+      const corr = (job.data as any)?._correlation as
+        | { requestId?: string | null; userId?: string | null }
+        | undefined;
+      activeContext = { requestId: corr?.requestId ?? null, userId: corr?.userId ?? null };
+      try {
+        const handler = handlers[queueName];
+        if (!handler) throw new Error(`No handler for queue ${queueName}`);
+        await handler(job);
+      } finally {
+        activeContext = null;
+      }
     }, { connection, ...JOB_OPTS });
 
     // Failure recording + dead-lettering.

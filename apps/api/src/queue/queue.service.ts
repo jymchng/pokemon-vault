@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { Queue, JobsOptions } from "bullmq";
 import IORedis from "ioredis";
 import { DEFAULT_JOB_OPTS, QueueName, QUEUES } from "./queue.constants";
+import { CorrelationService } from "../common/correlation.service";
 
 /** Build an ioredis connection from REDIS_URL (default redis://localhost:6379). */
 export function buildRedisConnection(): IORedis {
@@ -20,7 +21,7 @@ export class QueueService implements OnModuleDestroy {
   private readonly queues = new Map<QueueName, Queue>();
   private readonly connection: IORedis;
 
-  constructor() {
+  constructor(private readonly correlation: CorrelationService) {
     this.connection = buildRedisConnection();
     for (const name of QUEUES) {
       this.queues.set(name, new Queue(name, { connection: this.connection }));
@@ -33,7 +34,9 @@ export class QueueService implements OnModuleDestroy {
 
   /**
    * Enqueue a job. `jobId` (from payload.idempotencyKey or explicit) makes the
-   * enqueue idempotent — BullMQ dedupes identical jobIds.
+   * enqueue idempotent — BullMQ dedupes identical jobIds. The current
+   * correlation context (request_id / user_id, §66) is attached to the job so
+   * the worker can log and trace the job back to the originating request.
    */
   async enqueue(
     name: QueueName,
@@ -45,7 +48,14 @@ export class QueueService implements OnModuleDestroy {
     const jobId =
       opts.jobId ??
       (typeof data.idempotencyKey === "string" ? data.idempotencyKey : undefined);
-    const job = await queue.add(jobName, data, {
+    const { requestId, userId } = this.correlation.get();
+    const payload = {
+      ...data,
+      ...(requestId || userId
+        ? { _correlation: { requestId, userId } }
+        : {}),
+    };
+    const job = await queue.add(jobName, payload, {
       ...DEFAULT_JOB_OPTS,
       ...(jobId ? { jobId } : {}),
       ...opts,

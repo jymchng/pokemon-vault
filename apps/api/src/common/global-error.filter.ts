@@ -4,9 +4,9 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
 } from "@nestjs/common";
 import { ZodError } from "zod";
+import { StructuredLogger } from "./structured-logger";
 
 /** Stable machine-readable error codes (§102) for common cases. */
 const CODE_BY_STATUS: Record<number, string> = {
@@ -31,7 +31,11 @@ const CODE_BY_STATUS: Record<number, string> = {
  */
 @Catch()
 export class GlobalErrorFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalErrorFilter.name);
+  private readonly logger: StructuredLogger;
+
+  constructor(correlation?: import("./correlation.service").CorrelationService) {
+    this.logger = new StructuredLogger("api", correlation);
+  }
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
