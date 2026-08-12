@@ -5,8 +5,10 @@ import { NotificationsService } from "./notifications.service";
 import { NotificationsRepository } from "./notifications.repository";
 import { AuthGuard } from "../auth/auth.guard";
 import { RolesGuard } from "../common/roles.guard";
+import { QueueService } from "../queue/queue.service";
 
 const passGuard = { canActivate: () => true };
+const fakeQueue = { enqueue: async () => "job1" } as unknown as QueueService;
 
 class FakeNotificationsRepository {
   notifications: any[] = [];
@@ -50,7 +52,11 @@ class FakeNotificationsRepository {
 async function makeModule(repo: FakeNotificationsRepository) {
   return Test.createTestingModule({
     controllers: [NotificationsController],
-    providers: [NotificationsService, { provide: NotificationsRepository, useValue: repo }],
+    providers: [
+      NotificationsService,
+      { provide: NotificationsRepository, useValue: repo },
+      { provide: QueueService, useValue: fakeQueue },
+    ],
   })
     .overrideGuard(AuthGuard)
     .useValue(passGuard)
@@ -116,10 +122,12 @@ describe("G22 notifications module", () => {
     expect(updated.data.emailOptIn).toBe(true);
   });
 
-  it("staff creates a notification", async () => {
+  it("staff creates a notification (queued, not synchronous)", async () => {
     const repo = new FakeNotificationsRepository();
     const mod = await makeModule(repo);
     const res = await mod.get(NotificationsController).create({ userId: "u1", type: "REWARD_AVAILABLE", title: "New reward!" } as any);
-    expect(res.data.type).toBe("REWARD_AVAILABLE");
+    expect(res.data.queued).toBe(true);
+    expect(res.data.jobId).toBe("job1");
+    expect(repo.notifications).toHaveLength(0); // not persisted synchronously
   });
 });

@@ -14,6 +14,7 @@ import {
 import { AuthGuard } from "../auth/auth.guard";
 import { RolesGuard } from "../common/roles.guard";
 import { Roles } from "../common/roles.decorator";
+import { QueueService } from "../queue/queue.service";
 import {
   CreateNotificationSchema,
   NotificationQuerySchema,
@@ -34,7 +35,10 @@ import { NotificationsService } from "./notifications.service";
 @Controller("notifications")
 @UseGuards(AuthGuard)
 export class NotificationsController {
-  constructor(private readonly service: NotificationsService) {}
+  constructor(
+    private readonly service: NotificationsService,
+    private readonly queue: QueueService,
+  ) {}
 
   @Get()
   async index(@Req() req: any, @Query() query: unknown) {
@@ -72,6 +76,15 @@ export class NotificationsController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: unknown) {
     const parsed = CreateNotificationSchema.parse(body);
-    return { data: await this.service.create(parsed) };
+    // Enqueue to the notifications queue — the worker persists it (async,
+    // retryable, idempotent via dedupeId). Never synchronous in the request.
+    const idempotencyKey = `notif_${parsed.type}_${parsed.userId}_${(parsed.metadata as any)?.dedupeId ?? String(Date.now())}`;
+    const jobId = await this.queue.enqueue(
+      "notifications",
+      `send:${parsed.type}`,
+      { ...parsed, metadata: parsed.metadata ?? {}, idempotencyKey },
+      { jobId: idempotencyKey },
+    );
+    return { data: { queued: true, jobId } };
   }
 }

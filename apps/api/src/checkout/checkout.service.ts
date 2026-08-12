@@ -8,6 +8,7 @@ import { CheckoutDto, PayDto } from "./checkout.dto";
 import { CheckoutRepository } from "./checkout.repository";
 import { CartService } from "../cart/cart.service";
 import { RewardsService } from "../rewards/rewards.service";
+import { EmailService } from "../email/email.service";
 
 export const RESERVATION_TTL_MS = 15 * 60 * 1000;
 
@@ -36,6 +37,7 @@ export class CheckoutService {
     private readonly repo: CheckoutRepository,
     private readonly cartService: CartService,
     private readonly rewardsService: RewardsService,
+    private readonly email: EmailService,
   ) {}
 
   /**
@@ -85,6 +87,13 @@ export class CheckoutService {
       // Step 9: award purchase XP (idempotent per order; never fails checkout).
       if (order.userId) {
         await this.rewardsService.awardPurchaseXp(order.userId, Number(confirmed.total), orderId).catch(() => 0);
+      }
+      // Queue order-confirmation email (async; never blocks checkout).
+      const email = order.email ?? (order.userId ? await this.repo.findUserEmail(order.userId).catch(() => null) : null);
+      if (email) {
+        await this.email
+          .sendOrderConfirmation(email, confirmed.orderNumber ?? "PV-0", String(confirmed.total))
+          .catch(() => {});
       }
       return confirmed;
     } catch (err: any) {

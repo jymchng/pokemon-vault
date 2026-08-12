@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { hashPassword, verifyPassword } from "../common/password.policy";
+import { EmailService } from "../email/email.service";
 import { AuthRepository } from "./auth.repository";
 import {
   AuthResult,
@@ -34,7 +35,10 @@ function toPublic(user: AuthUserRow): PublicUser {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly repo: AuthRepository) {}
+  constructor(
+    private readonly repo: AuthRepository,
+    private readonly email: EmailService,
+  ) {}
 
   private get jwtSecret(): string {
     const s = process.env.JWT_SECRET || process.env.JWT_REFRESH_SECRET;
@@ -141,6 +145,8 @@ export class AuthService {
     const row = await this.repo.findUserById(created.id);
     if (!row) throw new NotFoundException("User not found");
     await this.repo.touchLastLogin(row.id);
+    // Queue welcome email (async; never blocks registration).
+    await this.email.sendWelcome(input.email, input.displayName ?? undefined).catch(() => {});
     return this.establishSession(row, meta);
   }
 

@@ -9,6 +9,9 @@ import { AuthService } from "./auth.service";
 import { AuthRepository } from "./auth.repository";
 import { AuthUserRow } from "./auth.types";
 import { sha256Hex, signJwt, verifyJwt } from "./crypto";
+import { EmailService } from "../email/email.service";
+
+const fakeEmail = { sendWelcome: async () => ({}) } as unknown as EmailService;
 
 /** In-memory fake repository exercising the token/rotation contracts. */
 class FakeAuthRepository {
@@ -112,7 +115,11 @@ class FakeAuthRepository {
 async function makeService(repo: FakeAuthRepository) {
   const moduleRef = await Test.createTestingModule({
     controllers: [AuthController],
-    providers: [AuthService, { provide: AuthRepository, useValue: repo }],
+    providers: [
+      AuthService,
+      { provide: AuthRepository, useValue: repo },
+      { provide: EmailService, useValue: fakeEmail },
+    ],
   }).compile();
   return { service: moduleRef.get(AuthService), ctrl: moduleRef.get(AuthController) };
 }

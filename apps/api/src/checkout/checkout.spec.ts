@@ -6,11 +6,13 @@ import { CheckoutRepository } from "./checkout.repository";
 import { AuthGuard } from "../auth/auth.guard";
 import { CartService } from "../cart/cart.service";
 import { RewardsService } from "../rewards/rewards.service";
+import { EmailService } from "../email/email.service";
 
 const passGuard = { canActivate: () => true };
 
 const fakeCartService = { getCart: async () => ({ items: [] }) };
 const fakeRewardsService = { awardPurchaseXp: async () => 0 };
+const fakeEmail = { sendOrderConfirmation: async () => ({}) } as unknown as EmailService;
 
 const ORDER = {
   id: "o1",
@@ -50,6 +52,9 @@ class FakeCheckoutRepository {
     this.order.status = "CANCELLED";
     return this.order;
   }
+  async findUserEmail() {
+    return "u1@x.dev";
+  }
   async findOrderForUser(orderId: string, userId: string | null) {
     if (orderId !== "o1") return null;
     return this.order;
@@ -64,6 +69,7 @@ async function makeModule(repo: FakeCheckoutRepository) {
       { provide: CheckoutRepository, useValue: repo },
       { provide: CartService, useValue: fakeCartService },
       { provide: RewardsService, useValue: fakeRewardsService },
+      { provide: EmailService, useValue: fakeEmail },
     ],
   })
     .overrideGuard(AuthGuard)

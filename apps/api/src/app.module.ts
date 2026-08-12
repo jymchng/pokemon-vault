@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "./prisma/prisma.module";
+import { QueueModule } from "./queue/queue.module";
+import { EmailModule } from "./email/email.module";
 import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./auth/auth.module";
 import { UsersModule } from "./users/users.module";
@@ -30,6 +32,8 @@ import { AuditModule } from "./audit/audit.module";
 @Module({
   imports: [
     PrismaModule,
+    QueueModule,
+    EmailModule,
     HealthModule,
     AuthModule,
     UsersModule,
