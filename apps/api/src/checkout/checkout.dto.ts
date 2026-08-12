@@ -6,7 +6,8 @@ export const CheckoutItemSchema = z.object({
 });
 
 export const CheckoutSchema = z.object({
-  items: z.array(CheckoutItemSchema).min(1).max(50),
+  // Items may be omitted to checkout the user's cart (validate-cart path).
+  items: z.array(CheckoutItemSchema).min(1).max(50).optional(),
   email: z.string().email().max(254).optional(),
 });
 

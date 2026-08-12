@@ -6,24 +6,57 @@ import {
 } from "@nestjs/common";
 import { CheckoutDto, PayDto } from "./checkout.dto";
 import { CheckoutRepository } from "./checkout.repository";
+import { CartService } from "../cart/cart.service";
+import { RewardsService } from "../rewards/rewards.service";
 
 export const RESERVATION_TTL_MS = 15 * 60 * 1000;
 
+/**
+ * Checkout workflow (§26) — a reliable, retryable pipeline with a state
+ * machine on the Order (PENDING → CONFIRMED → ...), NOT a single giant
+ * transaction spanning external providers:
+ *
+ *   1. validate cart/items        (server prices, ACTIVE products)
+ *   2. calculate prices            (§27 server-side subtotal/discount/shipping/tax/total)
+ *   3. validate inventory          (FOR UPDATE row locks, DB CHECK backstop)
+ *   4. reserve inventory           (InventoryReservation rows)
+ *   5. create payment              (PaymentProvider abstraction, idempotent)
+ *   6. confirm payment             (provider confirm / webhook)
+ *   7. create order                (PV- number + snapshot items)
+ *   8. commit inventory            (reservation → sale, atomic per line)
+ *   9. award rewards               (Collector XP, idempotent per order)
+ *   10. confirm                    (order CONFIRMED)
+ *
+ * Each step is idempotent/retryable; the payment step is external and never
+ * holds a DB transaction open across provider calls.
+ */
 @Injectable()
 export class CheckoutService {
-  constructor(private readonly repo: CheckoutRepository) {}
+  constructor(
+    private readonly repo: CheckoutRepository,
+    private readonly cartService: CartService,
+    private readonly rewardsService: RewardsService,
+  ) {}
 
   /**
-   * Checkout: verify stock → reserve → create order (PENDING) + payment
-   * (PENDING). Stock verification + reservation happen under row locks in a
-   * single transaction; the DB check constraint prevents overselling.
+   * Start checkout. Items may be supplied directly OR omitted to checkout the
+   * user's cart. Prices are always recomputed server-side.
    */
   async startCheckout(userId: string | null, email: string | null, input: CheckoutDto) {
+    let items = input.items;
+    if (!items || items.length === 0) {
+      if (!userId) throw new BadRequestException("A user cart is required for guest checkout");
+      const cart = await this.cartService.getCart(userId, null);
+      if (cart.items.length === 0) {
+        throw new BadRequestException("Cart is empty");
+      }
+      items = cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
+    }
     try {
       return await this.repo.createOrderWithReservations(
         userId,
         email ?? null,
-        input.items,
+        items,
         RESERVATION_TTL_MS,
       );
     } catch (err: any) {
@@ -40,7 +73,7 @@ export class CheckoutService {
     }
   }
 
-  /** Mock payment → finalize: convert reservation → sale atomically. */
+  /** Confirm payment → finalize: commit inventory, create order, award rewards. */
   async pay(orderId: string, userId: string, input: PayDto) {
     const order = await this.repo.findOrderForUser(orderId, userId);
     if (!order) throw new NotFoundException("Order not found");
@@ -49,6 +82,10 @@ export class CheckoutService {
         orderId,
         `mock_${input.paymentMethod}_${Date.now().toString(36)}`,
       );
+      // Step 9: award purchase XP (idempotent per order; never fails checkout).
+      if (order.userId) {
+        await this.rewardsService.awardPurchaseXp(order.userId, Number(confirmed.total), orderId).catch(() => 0);
+      }
       return confirmed;
     } catch (err: any) {
       if (err instanceof Error && err.message === "ORDER_NOT_FOUND") {

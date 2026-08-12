@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CheckoutItemDto } from "./checkout.dto";
 import { PaymentProvider } from "../payments/payment-provider.interface";
 import { PAYMENT_PROVIDER } from "../payments/payment-provider.token";
+import { computePrices, loadPricingConfig } from "../common/pricing";
 
 export interface ReservationLine {
   productId: string;
@@ -63,9 +64,11 @@ export class CheckoutRepository {
         });
       }
 
-      // 2. Create order (PENDING) + items. Human-readable order number from a
-      // PostgreSQL sequence (PV-10482, PV-10483, ...); PK stays an internal UUID.
-      const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+      // 2. Create order (PENDING) + items. Server-side pricing (§27): subtotal,
+      // discount, shipping, tax and total are computed from product prices and
+      // server-side rates — never accepted from the client. Human-readable order
+      // number from a PostgreSQL sequence (PV-10482, ...); PK stays a UUID.
+      const pricing = computePrices(lines, "USD", loadPricingConfig());
       const seqRows = await tx.$queryRawUnsafe<Array<{ nextval: string }>>(
         `SELECT nextval('order_number_seq') AS nextval`,
       );
@@ -76,9 +79,12 @@ export class CheckoutRepository {
           userId,
           email,
           status: "PENDING",
-          subtotal,
-          total: subtotal,
-          currency: "USD",
+          subtotal: pricing.subtotal,
+          discount: pricing.discount,
+          shipping: pricing.shipping,
+          tax: pricing.tax,
+          total: pricing.total,
+          currency: pricing.currency,
           items: {
             create: lines.map((l) => ({
               productId: l.productId,
@@ -123,8 +129,8 @@ export class CheckoutRepository {
       // 4. Payment record (PENDING) via the PaymentProvider abstraction —
       // PAYMENT_PROVIDER env selects stripe (real signature flow) or test.
       const intent = await this.provider.createPaymentIntent({
-        amount: subtotal,
-        currency: "USD",
+        amount: pricing.total,
+        currency: pricing.currency,
         idempotencyKey: `chk_${order.id}`,
         orderNumber: order.orderNumber,
       });
@@ -133,8 +139,8 @@ export class CheckoutRepository {
           orderId: order.id,
           provider: intent.provider,
           providerRef: intent.providerRef,
-          amount: subtotal,
-          currency: "USD",
+          amount: pricing.total,
+          currency: pricing.currency,
           status: "PENDING",
           idempotencyKey: `chk_${order.id}`,
         },

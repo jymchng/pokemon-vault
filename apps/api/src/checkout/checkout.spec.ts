@@ -4,8 +4,13 @@ import { CheckoutController } from "./checkout.controller";
 import { CheckoutService } from "./checkout.service";
 import { CheckoutRepository } from "./checkout.repository";
 import { AuthGuard } from "../auth/auth.guard";
+import { CartService } from "../cart/cart.service";
+import { RewardsService } from "../rewards/rewards.service";
 
 const passGuard = { canActivate: () => true };
+
+const fakeCartService = { getCart: async () => ({ items: [] }) };
+const fakeRewardsService = { awardPurchaseXp: async () => 0 };
 
 const ORDER = {
   id: "o1",
@@ -54,7 +59,12 @@ class FakeCheckoutRepository {
 async function makeModule(repo: FakeCheckoutRepository) {
   return Test.createTestingModule({
     controllers: [CheckoutController],
-    providers: [CheckoutService, { provide: CheckoutRepository, useValue: repo }],
+    providers: [
+      CheckoutService,
+      { provide: CheckoutRepository, useValue: repo },
+      { provide: CartService, useValue: fakeCartService },
+      { provide: RewardsService, useValue: fakeRewardsService },
+    ],
   })
     .overrideGuard(AuthGuard)
     .useValue(passGuard)
