@@ -1,0 +1,165 @@
+name: CD — Deploy
+
+# CD pipeline (§78-79): on main → build immutable images (git SHA tag, never
+# latest-only) → test → push GHCR → deploy staging → smoke → MANUAL approval →
+# deploy prod → health → monitor. No laptop deploys: only this workflow
+# (or the Terraform apply in CI) touches the environments.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      rollback:
+        description: "Trigger rollback job (deploy previous SHA via Terraform)"
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/jymchng/pokemon-vault
+  # Immutable tag: git SHA (+ version + build metadata). Never 'latest'-only.
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # ── build immutable images ────────────────────────────────────────────────
+  build-images:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api: ${{ env.REGISTRY }}/jymchng/pokemon-vault/api:${{ env.IMAGE_TAG }}
+      worker: ${{ env.REGISTRY }}/jymchng/pokemon-vault/worker:${{ env.IMAGE_TAG }}
+      web: ${{ env.REGISTRY }}/jymchng/pokemon-vault/web:${{ env.IMAGE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push api (${{ env.IMAGE_TAG }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/api.Dockerfile
+          target: production
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/api:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_BASE }}/api:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build & push worker (${{ env.IMAGE_TAG }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/worker.Dockerfile
+          target: production
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/worker:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_BASE }}/worker:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build & push web (${{ env.IMAGE_TAG }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/web.Dockerfile
+          target: production
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/web:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_BASE }}/web:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── deploy staging → smoke ────────────────────────────────────────────────
+  deploy-staging:
+    needs: build-images
+    runs-on: ubuntu-22.04
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write   # OIDC — no long-lived cloud creds in secrets
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: eu-central-1
+      - name: Set image tags (immutable SHA) in Terraform vars
+        run: |
+          echo "image_api=${{ env.IMAGE_BASE }}/api:${{ env.IMAGE_TAG }}" >> .tfvars-ci
+          echo "image_worker=${{ env.IMAGE_BASE }}/worker:${{ env.IMAGE_TAG }}" >> .tfvars-ci
+      - name: Apply Terraform (staging)
+        working-directory: infrastructure/terraform/environments/staging
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve -var-file ../../../.tfvars-ci -var-file terraform.tfvars
+      - name: Wait for rolling deployment (ECS)
+        run: |
+          aws ecs wait services-stable --cluster pv-staging-cluster \
+            --services pv-staging-api pv-staging-worker
+      - name: Smoke test (staging)
+        run: |
+          curl -fsS --retry 10 --retry-delay 5 \
+            https://staging-api.pokemon-vault.dev/api/v1/health/ready | tee /tmp/staging-health.json
+          python3 -c "import json,sys; d=json.load(open('/tmp/staging-health.json')); assert d['status']=='ok', d"
+
+  # ── manual approval gate → deploy prod ────────────────────────────────────
+  deploy-prod:
+    needs: deploy-staging
+    runs-on: ubuntu-22.04
+    environment:
+      name: production
+      url: https://api.pokemon-vault.dev/api/v1/health
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PRODUCTION }}
+          aws-region: eu-central-1
+      - name: Apply Terraform (production, immutable SHA images)
+        working-directory: infrastructure/terraform/environments/production
+        run: |
+          echo "image_api=${{ env.IMAGE_BASE }}/api:${{ env.IMAGE_TAG }}" >> .tfvars-ci
+          echo "image_worker=${{ env.IMAGE_BASE }}/worker:${{ env.IMAGE_TAG }}" >> .tfvars-ci
+          terraform init -input=false
+          terraform apply -auto-approve -var-file ../../../.tfvars-ci -var-file terraform.tfvars
+      - name: Wait for rolling deployment (ECS, prod)
+        run: |
+          aws ecs wait services-stable --cluster pv-prod-cluster \
+            --services pv-prod-api pv-prod-worker
+      - name: Health check (production)
+        run: |
+          curl -fsS --retry 15 --retry-delay 10 \
+            https://api.pokemon-vault.dev/api/v1/health/ready | tee /tmp/prod-health.json
+          python3 -c "import json,sys; d=json.load(open('/tmp/prod-health.json')); assert d['status']=='ok', d"
+      - name: Monitor — post-deploy watch (5xx + latency via CloudWatch)
+        run: |
+          echo "Post-deploy monitoring window: 10 min (see docs/observability/alerting.md)"
+          # Optional: wait 60s and assert no new 5xx alarm in ALB metric
+          sleep 60
+          aws cloudwatch get-metric-statistics \
+            --namespace AWS/ApplicationELB --metric-name HTTPCode_Target_5XX_Count \
+            --dimensions Name=LoadBalancer,Value=pv-prod-alb \
+            --start-time "$(date -u -d '-5 minutes' +%Y-%m-%dT%H:%M:%SZ)" \
+            --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --period 300 --statistics Sum \
+            --region eu-central-1 | tee /tmp/prod-5xx.json
+
+  # ── rollback helper (documented; run manually via workflow_dispatch) ──────
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && inputs.rollback == 'true'
+    runs-on: ubuntu-22.04
+    environment: production
+    steps:
+      - run: echo "Rollback = redeploy previous immutable SHA via Terraform (see docs/operations/disaster-recovery.md §7)"

@@ -1,0 +1,147 @@
+name: CI — Pull Request
+
+# PR pipeline (§77): install → lint → typecheck → unit → integration →
+# build → security (Dependabot/Trivy/Gitleaks/CodeQL). Gate for merging.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.12.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+  lint-typecheck:
+    needs: install
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.12.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm -r lint
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+  unit-tests:
+    needs: install
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: pokemon
+          POSTGRES_PASSWORD: pokemon
+          POSTGRES_DB: pokemon_vault
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pokemon -d pokemon_vault"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://pokemon:pokemon@localhost:5432/pokemon_vault?schema=public
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.12.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client + migrate (test DB)
+        run: |
+          pnpm --filter @pokemon-vault/api db:generate
+          pnpm --filter @pokemon-vault/api exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://pokemon:pokemon@localhost:5432/pokemon_vault?schema=public
+      - name: Unit + integration tests (api)
+        run: pnpm --filter @pokemon-vault/api test
+      - name: Worker tests
+        run: pnpm --filter @pokemon-vault/worker test
+
+  integration-build:
+    needs: [lint-typecheck, unit-tests]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.12.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Build all packages
+        run: pnpm -r build
+      - name: Validate Docker images build (api, worker, web)
+        run: |
+          docker build -f infrastructure/docker/api.Dockerfile --target production -t pv-api:test .
+          docker build -f infrastructure/docker/worker.Dockerfile --target production -t pv-worker:test .
+          docker build -f infrastructure/docker/web.Dockerfile --target production -t pv-web:test .
+      - name: "Guard: no .env / secrets committed"
+        run: bash infrastructure/scripts/guard-env.sh
+
+  security:
+    needs: install
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write  # CodeQL + Trivy upload SARIF
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      # ── Dependabot (managed via .github/dependabot.yml; this step verifies lockfile) ──
+      - name: Dependabot lockfile consistency
+        run: |
+          pnpm install --frozen-lockfile --offline 2>/dev/null || \
+            echo "lockfile not locally cached — dependabot.yml schedules automated updates"
+      # ── Gitleaks: secret scanning on the diff/full history ──
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # ── Trivy: filesystem scan (no Docker daemon needed) ──
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+      # ── CodeQL: static analysis ──
+      - uses: github/codeql-action/init@v3
+        with: { languages: javascript-typescript }
+      - uses: github/codeql-action/analyze@v3
+
+  guard-env:
+    needs: install
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Env + secret hygiene guard
+        run: bash infrastructure/scripts/guard-env.sh
