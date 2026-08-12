@@ -46,8 +46,10 @@ class FakeShippingRepository {
     return s ? { ...s, order: { orderNumber: "PV-1" } } : null;
   }
   async findShipmentsByUser(userId: string) {
-    const ids = new Set(this.items.filter((i) => i.userId === userId).map((i) => i.shipmentId));
-    return this.shipments.filter((s) => ids.has(s.id)).map((s) => ({ ...s, order: { orderNumber: "PV-1" } }));
+    const itemIds = new Set(this.items.filter((i) => i.userId === userId).map((i) => i.shipmentId));
+    return this.shipments
+      .filter((s) => itemIds.has(s.id) || s.orderUserId === userId)
+      .map((s) => ({ ...s, order: { orderNumber: "PV-1" } }));
   }
   async createShipment(data: any) {
     const row = { id: `s${++this.seq}`, status: "PENDING", carrier: null, trackingNumber: null, trackingUrl: null, estimatedDelivery: null, shippedAt: null, deliveredAt: null, createdAt: new Date(), updatedAt: new Date(), ...data };
@@ -142,6 +144,19 @@ describe("G18 shipping module", () => {
     const mod = await makeModule(repo);
     const mine = await mod.get(ShippingController).myShipments(req("u1") as any);
     expect(mine.data).toHaveLength(1);
+    const others = await mod.get(ShippingController).myShipments(req("u2") as any);
+    expect(others.data).toHaveLength(0);
+  });
+
+  it("owner sees a shipment created without items via order ownership", async () => {
+    const repo = new FakeShippingRepository();
+    // Admin creates a shipment for an order owned by u1; no ShipmentItem rows.
+    await repo.createShipment({ orderId: "o1", orderUserId: "u1", carrier: "USPS", trackingNumber: "9400" });
+    const mod = await makeModule(repo);
+    const mine = await mod.get(ShippingController).myShipments(req("u1") as any);
+    expect(mine.data).toHaveLength(1);
+    expect(mine.data[0].trackingNumber).toBe("9400");
+    // A different user must NOT see it.
     const others = await mod.get(ShippingController).myShipments(req("u2") as any);
     expect(others.data).toHaveLength(0);
   });

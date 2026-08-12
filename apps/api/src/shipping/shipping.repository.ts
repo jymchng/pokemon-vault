@@ -100,7 +100,14 @@ export class ShippingRepository {
 
   async findShipmentsByUser(userId: string): Promise<ShipmentDto[]> {
     const rows = await this.prisma.shipment.findMany({
-      where: { items: { some: { userId } } },
+      where: {
+        OR: [
+          // Linked via shipment items (per-item ownership).
+          { items: { some: { userId } } },
+          // OR the shipment belongs to one of the user's orders (no items case).
+          { order: { userId } },
+        ],
+      },
       include: { order: { select: { orderNumber: true } } },
       orderBy: { createdAt: "desc" },
     });
