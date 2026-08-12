@@ -1,0 +1,197 @@
+// Pokémon Vault — API database schema (PostgreSQL)
+// G4 expands this schema fully (users, auth, inventory, payments, etc.).
+// This G2 baseline is enough for the local-dev seed + e2e wiring.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  emailVerified Boolean   @default(false)
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  displayName  String?
+  avatarUrl    String?
+  status       String    @default("ACTIVE") // ACTIVE | SUSPENDED | DELETED
+  role         String    @default("CUSTOMER") // CUSTOMER | STAFF | ADMIN | SUPER_ADMIN
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+  deletedAt    DateTime?
+}
+
+model Set {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  series      String?
+  releaseDate DateTime?
+  totalCards  Int      @default(0)
+  logoUrl     String?
+  symbolUrl   String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards Card[]
+}
+
+model Card {
+  id          String   @id @default(uuid())
+  name        String
+  setName     String
+  cardNumber  String?
+  rarity      String?
+  type        String?
+  hp          String?
+  language    String   @default("EN")
+  imageUrl    String?
+  description String?
+  grade       String? // UNGRADED | PSA_10 | ... | BGS_9_5
+  condition   String?
+  marketPrice Decimal? @db.Decimal(10, 2)
+  population  Int?
+  owned       Boolean  @default(false)
+  quantity    Int      @default(0)
+  acquiredAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  setId  String?
+  setRelation Set? @relation(fields: [setId], references: [id])
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  sku         String   @unique
+  slug        String   @unique
+  description String?
+  category    String?
+  productType String   @default("SINGLE_CARD") // SINGLE_CARD | BOOSTER_PACK | ...
+  setName     String?
+  price       Decimal  @db.Decimal(10, 2)
+  compareAt   Decimal? @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  status      String   @default("ACTIVE") // ACTIVE | DRAFT | ARCHIVED
+  stock       Int      @default(0)
+  rating      Decimal? @db.Decimal(3, 2)
+  availability String  @default("In Stock")
+  image       String?
+  weight      Decimal? @db.Decimal(10, 2)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+}
+
+model Pack {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  tagline     String?
+  price       Decimal  @db.Decimal(10, 2)
+  cardsPerPack Int     @default(10)
+  image       String?
+  availability String  @default("In Stock")
+  description String?
+  setName     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  orderNumber String   @unique
+  userId      String?
+  email       String?
+  status      String   @default("PENDING") // PENDING..DELIVERED | CANCELLED | REFUNDED
+  subtotal    Decimal  @default(0) @db.Decimal(10, 2)
+  discount    Decimal  @default(0) @db.Decimal(10, 2)
+  shipping    Decimal  @default(0) @db.Decimal(10, 2)
+  tax         Decimal  @default(0) @db.Decimal(10, 2)
+  total       Decimal  @default(0) @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ActivityEvent {
+  id         String   @id @default(uuid())
+  userId     String?
+  eventType  String // CARD_ADDED | PACK_OPENED | ORDER_COMPLETED | REWARD_EARNED ...
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
+
+model RewardTier {
+  id        String   @id @default(uuid())
+  name      String
+  level     Int      @unique
+  xpRequired Int
+  createdAt DateTime @default(now())
+}
+
+model LeaderboardEntry {
+  id     String @id @default(uuid())
+  wallet String @unique
+  volume Decimal @default(0) @db.Decimal(10, 2)
+  rank   Int?
+}
+
+model WayToWin {
+  id    String @id @default(uuid())
+  title String
+  body  String
+}
+
+model Address {
+  id        String @id @default(uuid())
+  userId    String?
+  label     String?
+  line1     String
+  line2     String?
+  city      String
+  state     String?
+  postal    String?
+  country   String @default("US")
+  isDefault Boolean @default(false)
+}
+
+model Shipment {
+  id           String @id @default(uuid())
+  orderId      String?
+  carrier      String?
+  trackingNumber String?
+  trackingUrl  String?
+  status       String @default("PENDING") // PENDING..DELIVERED | EXCEPTION
+  estimatedDelivery DateTime?
+  shippedAt    DateTime?
+  deliveredAt  DateTime?
+}
+
+model LatestPull {
+  id      String @id @default(uuid())
+  title   String
+  grader  String
+  delta   Decimal @db.Decimal(10, 2)
+  value   Decimal @db.Decimal(12, 2)
+}
+
+model PlatformPull {
+  id       String @id @default(uuid())
+  title    String
+  price    Decimal @db.Decimal(10, 2)
+  timeAgo  String
+  grader   String
+}

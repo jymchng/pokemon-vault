@@ -27,5 +27,15 @@
     "node": ">=22.12",
     "pnpm": ">=9"
   },
-  "packageManager": "pnpm@10.12.1"
+  "packageManager": "pnpm@10.12.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "argon2",
+      "better-sqlite3",
+      "prisma",
+      "@prisma/engines",
+      "esbuild",
+      "unrs-resolver"
+    ]
+  }
 }
