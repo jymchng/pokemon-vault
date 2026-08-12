@@ -23,7 +23,7 @@
   "devDependencies": {
     "@rolldown/binding-linux-x64-gnu": "1.2.3",
     "prettier": "^3.9.6",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "engines": {
     "node": ">=22.12",
