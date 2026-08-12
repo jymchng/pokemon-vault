@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pokémon Vault
 
-## Getting Started
+Modern Pokémon trading-card ecommerce + collection platform.
 
-First, run the development server:
+**Monorepo** (pnpm workspaces): web storefront, production API (NestJS + PostgreSQL),
+background worker (BullMQ), shared packages, infrastructure (Docker/Terraform), CI/CD
+(GitHub Actions), and documentation.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+> **No crypto/Web3.** This is a conventional fiat ecommerce and collectibles platform.
+> The "Collector XP" rewards system is an internal loyalty metric, not a token.
+
+## Repository layout
+
+```text
+pokemon-vault/
+├── apps/
+│   ├── web/          # Next.js storefront (App Router)
+│   ├── api/          # NestJS production API (PostgreSQL + Prisma)
+│   └── worker/       # BullMQ background worker (Redis)
+├── packages/
+│   ├── types/        # shared TypeScript types (frontend/backend contract)
+│   ├── config/       # shared configuration
+│   ├── validation/   # shared Zod schemas
+│   └── eslint-config # shared ESLint config
+├── infrastructure/
+│   ├── terraform/    # AWS IaC (dev/staging/production)
+│   ├── docker/       # Dockerfiles
+│   └── kubernetes/   # (only if an operational requirement appears)
+├── scripts/          # repo-level tooling
+├── docs/             # architecture, deployment, security, DR, operations…
+└── .github/workflows # CI/CD
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Quickstart (local development)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Requirements: Node.js **>= 22.12**, pnpm **>= 9**.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+git clone git@github.com:jymchng/pokemon-vault.git
+cd pokemon-vault
+pnpm install
+cp .env.example .env          # (or apps/web/.env.example → apps/web/.env)
+docker compose up -d          # postgres, redis, minio, mailpit
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+```
 
-## Learn More
+- Web: <http://localhost:3000>
+- API: <http://localhost:3001> (OpenAPI at `/docs`)
+- Worker: consumes BullMQ queues from Redis
+- Mailpit: <http://localhost:8025> (captures outbound email locally)
+- MinIO console: <http://localhost:9001>
 
-To learn more about Next.js, take a look at the following resources:
+> The storefront historically used SQLite via Prisma; it is being migrated to the
+> PostgreSQL-backed API as the single source of truth (see `docs/architecture.md`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Command | What it does |
+|---|---|
+| `pnpm dev` | run web + api + worker in watch mode |
+| `pnpm build` | build all workspaces |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | repo-wide checks |
+| `pnpm db:migrate` / `pnpm db:seed` | database migration + deterministic seed |
+| `pnpm format` / `pnpm format:check` | Prettier |
 
-## Deploy on Vercel
+## Documentation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`docs/` — architecture, local development, deployment, database, security,
+disaster recovery, API reference, and operations runbooks.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Production checklist
+
+See `docs/operations.md` for the full production-readiness checklist (authentication,
+ecommerce, collection, rewards, security, DevOps).

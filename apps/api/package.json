@@ -1,0 +1,13 @@
+{
+  "name": "@pokemon-vault/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pokémon Vault production API (NestJS). Scaffold in progress.",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  }
+}
