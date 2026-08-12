@@ -125,7 +125,7 @@ jobs:
           pnpm install --frozen-lockfile --offline 2>/dev/null || \
             echo "lockfile not locally cached — dependabot.yml schedules automated updates"
       # ── Gitleaks: secret scanning on the diff/full history ──
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # ── Dependency advisories: pnpm audit (fails on high/critical) ──
