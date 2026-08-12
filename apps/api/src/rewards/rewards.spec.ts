@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import { RewardsController } from "./rewards.controller";
 import { RewardsService } from "./rewards.service";
+import { MetricsService } from "../observability/metrics.service";
 import { RewardsRepository } from "./rewards.repository";
 import { AuthGuard } from "../auth/auth.guard";
 import { RolesGuard } from "../common/roles.guard";
@@ -99,7 +100,7 @@ class FakeRewardsRepository {
 async function makeModule(repo: FakeRewardsRepository) {
   return Test.createTestingModule({
     controllers: [RewardsController],
-    providers: [RewardsService, { provide: RewardsRepository, useValue: repo }],
+    providers: [RewardsService, { provide: RewardsRepository, useValue: repo }, { provide: MetricsService, useValue: { recordCheckoutStarted(){}, recordCheckoutCompleted(){}, recordCheckoutFailed(){}, recordPaymentStarted(){}, recordPaymentCompleted(){}, recordPaymentFailed(){}, recordInventoryReservation(){}, recordInventoryReservationFailed(){}, recordOrderCreated(){}, recordOrderCompleted(){}, recordProductsSold(){}, recordPackOpening(){}, recordCardAdded(){}, recordRewardRedeemed(){} } }],
   })
     .overrideGuard(AuthGuard)
     .useValue(passGuard)

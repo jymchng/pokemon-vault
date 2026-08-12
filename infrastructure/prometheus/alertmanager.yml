@@ -1,0 +1,19 @@
+# Alertmanager config — Pokémon Vault (§69)
+route:
+  receiver: "default"
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: ["severity=critical"]
+      receiver: "oncall-pager"
+
+receivers:
+  - name: "default"
+    email_configs:
+      - to: "oncall@pokemon-vault.dev"
+        from: "alerts@pokemon-vault.dev"
+  - name: "oncall-pager"
+    webhook_configs:
+      - url: "http://pagerduty-webhook:8080"  # PagerDuty/Slack adapter

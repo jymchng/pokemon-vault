@@ -11,10 +11,14 @@ import {
   UpdateRewardDto,
 } from "./rewards.dto";
 import { RewardsRepository } from "./rewards.repository";
+import { MetricsService } from "../observability/metrics.service";
 
 @Injectable()
 export class RewardsService {
-  constructor(private readonly repo: RewardsRepository) {}
+  constructor(
+    private readonly repo: RewardsRepository,
+    private readonly metrics: MetricsService,
+  ) {}
 
   // ---- Account / XP ----
 
@@ -55,7 +59,9 @@ export class RewardsService {
 
   async redeem(userId: string, rewardId: string) {
     try {
-      return await this.repo.redeemReward(userId, rewardId);
+      const result = await this.repo.redeemReward(userId, rewardId);
+      this.metrics.recordRewardRedeemed(); // §67
+      return result;
     } catch (err: any) {
       if (err instanceof Error) {
         switch (err.message) {

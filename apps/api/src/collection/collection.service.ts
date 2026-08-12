@@ -5,10 +5,14 @@ import {
 } from "@nestjs/common";
 import { AddItemDto, UpdateItemDto } from "./collection.dto";
 import { CollectionRepository } from "./collection.repository";
+import { MetricsService } from "../observability/metrics.service";
 
 @Injectable()
 export class CollectionService {
-  constructor(private readonly repo: CollectionRepository) {}
+  constructor(
+    private readonly repo: CollectionRepository,
+    private readonly metrics: MetricsService,
+  ) {}
 
   async listItems(userId: string) {
     return this.repo.findItems(userId);
@@ -22,6 +26,7 @@ export class CollectionService {
       entityId: input.cardId,
       metadata: { quantity: input.quantity, source: input.source ?? "MANUAL_ENTRY" },
     });
+    this.metrics.recordCardAdded(); // §67
     return item;
   }
 

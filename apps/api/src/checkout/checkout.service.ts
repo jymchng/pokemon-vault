@@ -9,6 +9,7 @@ import { CheckoutRepository } from "./checkout.repository";
 import { CartService } from "../cart/cart.service";
 import { RewardsService } from "../rewards/rewards.service";
 import { EmailService } from "../email/email.service";
+import { MetricsService } from "../observability/metrics.service";
 
 export const RESERVATION_TTL_MS = 15 * 60 * 1000;
 
@@ -38,6 +39,7 @@ export class CheckoutService {
     private readonly cartService: CartService,
     private readonly rewardsService: RewardsService,
     private readonly email: EmailService,
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -55,12 +57,15 @@ export class CheckoutService {
       items = cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
     }
     try {
-      return await this.repo.createOrderWithReservations(
+      const created = await this.repo.createOrderWithReservations(
         userId,
         email ?? null,
         items,
         RESERVATION_TTL_MS,
       );
+      this.metrics.recordCheckoutStarted(); // §67
+      this.metrics.recordInventoryReservation();
+      return created;
     } catch (err: any) {
       if (err instanceof Error && err.message.startsWith("PRODUCT_NOT_FOUND")) {
         throw new NotFoundException("One or more products not found");
@@ -84,6 +89,15 @@ export class CheckoutService {
         orderId,
         `mock_${input.paymentMethod}_${Date.now().toString(36)}`,
       );
+      // §67 business metrics: order created + checkout/payment completed.
+      this.metrics.recordOrderCreated();
+      this.metrics.recordCheckoutCompleted();
+      this.metrics.recordPaymentCompleted();
+      const unitsSold = (confirmed.items ?? []).reduce(
+        (acc: number, it: { quantity?: number }) => acc + (Number(it.quantity) || 0),
+        0,
+      );
+      if (unitsSold > 0) this.metrics.recordProductsSold(unitsSold);
       // Step 9: award purchase XP (idempotent per order; never fails checkout).
       if (order.userId) {
         await this.rewardsService.awardPurchaseXp(order.userId, Number(confirmed.total), orderId).catch(() => 0);
@@ -106,6 +120,8 @@ export class CheckoutService {
       if (err instanceof Error && err.message === "STOCK_LOST") {
         throw new BadRequestException("Stock changed since reservation; order requires review");
       }
+      this.metrics.recordCheckoutFailed(); // §67
+      this.metrics.recordPaymentFailed();
       throw err;
     }
   }

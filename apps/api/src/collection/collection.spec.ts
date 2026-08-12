@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { NotFoundException } from "@nestjs/common";
 import { CollectionController } from "./collection.controller";
 import { CollectionService } from "./collection.service";
+import { MetricsService } from "../observability/metrics.service";
 import { CollectionRepository } from "./collection.repository";
 import { AuthGuard } from "../auth/auth.guard";
 
@@ -83,7 +84,7 @@ class FakeCollectionRepository {
 async function makeModule(repo: FakeCollectionRepository) {
   return Test.createTestingModule({
     controllers: [CollectionController],
-    providers: [CollectionService, { provide: CollectionRepository, useValue: repo }],
+    providers: [CollectionService, { provide: CollectionRepository, useValue: repo }, { provide: MetricsService, useValue: { recordCheckoutStarted(){}, recordCheckoutCompleted(){}, recordCheckoutFailed(){}, recordPaymentStarted(){}, recordPaymentCompleted(){}, recordPaymentFailed(){}, recordInventoryReservation(){}, recordInventoryReservationFailed(){}, recordOrderCreated(){}, recordOrderCompleted(){}, recordProductsSold(){}, recordPackOpening(){}, recordCardAdded(){}, recordRewardRedeemed(){} } }],
   })
     .overrideGuard(AuthGuard)
     .useValue(passGuard)

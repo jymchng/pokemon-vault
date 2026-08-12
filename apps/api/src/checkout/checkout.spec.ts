@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { CheckoutController } from "./checkout.controller";
 import { CheckoutService } from "./checkout.service";
+import { MetricsService } from "../observability/metrics.service";
 import { CheckoutRepository } from "./checkout.repository";
 import { AuthGuard } from "../auth/auth.guard";
 import { CartService } from "../cart/cart.service";
@@ -65,6 +66,7 @@ async function makeModule(repo: FakeCheckoutRepository) {
   return Test.createTestingModule({
     controllers: [CheckoutController],
     providers: [
+      { provide: MetricsService, useValue: { recordCheckoutStarted(){}, recordCheckoutCompleted(){}, recordCheckoutFailed(){}, recordPaymentStarted(){}, recordPaymentCompleted(){}, recordPaymentFailed(){}, recordInventoryReservation(){}, recordInventoryReservationFailed(){}, recordOrderCreated(){}, recordOrderCompleted(){}, recordProductsSold(){}, recordPackOpening(){}, recordCardAdded(){}, recordRewardRedeemed(){} } },
       CheckoutService,
       { provide: CheckoutRepository, useValue: repo },
       { provide: CartService, useValue: fakeCartService },

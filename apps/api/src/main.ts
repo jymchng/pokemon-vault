@@ -5,6 +5,9 @@ import "reflect-metadata";
 import helmet from "helmet";
 import { GlobalErrorFilter } from "./common/global-error.filter";
 import { CorrelationService } from "./common/correlation.service";
+import { ObservabilityModule } from "./observability/observability.module";
+import { initSentry } from "./observability/sentry";
+import { initTracing } from "./observability/tracing";
 import { parseCorsOrigins } from "./security/cors";
 
 /** Walk up from cwd to the pnpm workspace root (where .env lives). */
@@ -30,12 +33,16 @@ import { AppModule } from "./app.module";
 import { StructuredLogger } from "./common/structured-logger";
 
 async function bootstrap() {
+  // Observability bootstrap (§67-69): Sentry + OpenTelemetry first so early
+  // errors are captured; both are no-ops when their env is unset.
+  initSentry();
+  initTracing();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // Structured JSON logs (§65): all Nest loggers emit JSON with ts/level/
   // service/environment/request_id/user_id; secrets are redacted.
   app.useLogger(app.get(StructuredLogger));
   app.useGlobalFilters(new GlobalErrorFilter(app.get(CorrelationService)));
-  app.setGlobalPrefix("api/v1");
+  app.setGlobalPrefix("api/v1", { exclude: ["metrics"] });
 
   // Security headers (§53): Helmet default (incl. X-Content-Type-Options:
   // nosniff) + CSP (prod) + HSTS (prod) + Referrer-Policy: same-origin.

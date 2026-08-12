@@ -1,0 +1,49 @@
+# Local observability stack (§67-69) — Prometheus + Alertmanager + Grafana.
+# Usage: docker compose -f docker-compose.obs.yml up -d
+# Prometheus scrapes http://api:3001/metrics (join the pv-net bridge used by
+# docker-compose.yml) and http://prometheus:9090/metrics (self).
+name: pokemon-vault-obs
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: pv-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/prometheus/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks: [pv-net]
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: pv-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./infrastructure/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks: [pv-net]
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: pv-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    networks: [pv-net]
+
+volumes:
+  prometheus_data:
+
+networks:
+  pv-net:
+    external: true

@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { OpenPackDto, PackOpeningDto } from "./packs.dto";
 import { PacksRepository, RANDOMIZATION_VERSION } from "./packs.repository";
+import { MetricsService } from "../observability/metrics.service";
 
 /**
  * §34-37 Pack opening:
@@ -19,7 +20,10 @@ import { PacksRepository, RANDOMIZATION_VERSION } from "./packs.repository";
  */
 @Injectable()
 export class PacksService {
-  constructor(private readonly repo: PacksRepository) {}
+  constructor(
+    private readonly repo: PacksRepository,
+    private readonly metrics: MetricsService,
+  ) {}
 
   async list() {
     return this.repo.findAll();
@@ -49,12 +53,14 @@ export class PacksService {
 
     const cardIds = this.drawCards(pool, pack.cardsPerPack);
     try {
-      return await this.repo.createOpening({
+      const opening = await this.repo.createOpening({
         idempotencyKey: input.idempotencyKey,
         userId,
         packId: pack.id,
         cardIds,
       });
+      this.metrics.recordPackOpening(); // §67
+      return opening;
     } catch (err: any) {
       // Concurrent duplicate idempotency key → return the winner's opening.
       if (err?.code === "P2002") {

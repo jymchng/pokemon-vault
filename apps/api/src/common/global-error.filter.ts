@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { ZodError } from "zod";
 import { StructuredLogger } from "./structured-logger";
+import { captureError } from "../observability/sentry";
 
 /** Stable machine-readable error codes (§102) for common cases. */
 const CODE_BY_STATUS: Record<number, string> = {
@@ -84,6 +85,8 @@ export class GlobalErrorFilter implements ExceptionFilter {
       `Unhandled ${req.method} ${req.url} (${requestId ?? "?"}): ${err?.message ?? exception}`,
       err?.stack,
     );
+    // §69: report unhandled server errors to Sentry (no-op without SENTRY_DSN).
+    captureError(exception, { requestId, userId: (req as any)?.user?.id });
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       error: {
         code: "INTERNAL_ERROR",
