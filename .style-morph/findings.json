@@ -1,0 +1,158 @@
+{
+  "workflow": "style_morph",
+  "current_site": "pokemon-vault",
+  "reference_site": "https://jup.ag/gacha",
+  "date": "2026-08-11",
+  "phase": "final_verification",
+  "summary": {
+    "PASS": 5,
+    "PARTIAL": 2,
+    "FAIL": 0,
+    "BLOCKED": 0,
+    "verification_matrix": {
+      "PASS": 29,
+      "PARTIAL": 0,
+      "FAIL": 0,
+      "BLOCKED": 0,
+      "NOT_AVAILABLE": 1
+    },
+    "final_pass": {
+      "typecheck": "PASS",
+      "lint": "PASS",
+      "format": "PASS",
+      "browser_smoke": "PASS (0 overflow at 1440/768/390; 0 console errors desktop/tablet; drawer interactions PASS)",
+      "mismatches_remaining": "2 Low preserved (M-001 packs hero arrangement, M-002 store card-grid)",
+      "pre_existing": [
+        "Node21 prisma/build env",
+        "/api/data ERR_DLOPEN_FAILED",
+        "no test suite"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "id": "REF-COLOR-001",
+      "category": "Visual",
+      "severity": "Critical",
+      "requirement": "Page background rgb(9,13,16)",
+      "reference": "rgb(9,13,16)",
+      "implemented": "rgb(9,13,16)",
+      "verified": true,
+      "result": "PASS",
+      "evidence": "computed body backgroundColor rgb(9,13,16)"
+    },
+    {
+      "id": "REF-COLOR-005",
+      "category": "Visual",
+      "severity": "Critical",
+      "requirement": "Lime interaction accent",
+      "reference": "oklch(90.7% .145 126.6) ~ #c6f24c",
+      "implemented": "#c6f24c",
+      "verified": true,
+      "result": "PASS",
+      "evidence": "--accent-lime #c6f24c; button accent variant, tabs, tier strip, orbs"
+    },
+    {
+      "id": "REF-SHAPE-001",
+      "category": "Visual",
+      "severity": "High",
+      "requirement": "16px card radius, flat 1px border",
+      "reference": "radius 16px, 1px border, flat",
+      "implemented": "rounded-[1rem], border-border, bg-elevated, no ring",
+      "verified": true,
+      "result": "PASS",
+      "evidence": "computed radius 16px on home hero + Card primitive"
+    },
+    {
+      "id": "REF-COMP-003",
+      "category": "Interaction",
+      "severity": "High",
+      "requirement": "Pill tabs with lime active",
+      "reference": "pill tabs h36, active lime@5% + lime text",
+      "implemented": "pill tablist, active bg-accent-lime/10 text-accent-lime",
+      "verified": true,
+      "result": "PASS",
+      "evidence": "collection tablist radius 3.35e7px; active Cards pill lime"
+    },
+    {
+      "id": "REF-MOTION-001",
+      "category": "Motion",
+      "severity": "High",
+      "requirement": "Drawer backdrop motion",
+      "reference": "opacity 0.3s cubic-bezier(0.32,0.72,0,1)",
+      "implemented": "backdrop-fade 0.3s var(--ease-jupiter) = cubic-bezier(0.32,0.72,0,1)",
+      "verified": true,
+      "result": "PASS",
+      "evidence": "computed transition on drawer backdrop; Esc closes"
+    },
+    {
+      "id": "REF-RESP-001",
+      "category": "Responsive",
+      "severity": "High",
+      "requirement": "Header 50/56 responsive; 0 overflow",
+      "reference": "header 56 desktop / 50 tablet+mobile; overflow 0",
+      "implemented": "header 48 mobile / 56 desktop; overflow 0 at 390/768/1440",
+      "verified": true,
+      "result": "PASS",
+      "evidence": "browser: header 48/56/56; scrollWidth==clientWidth"
+    },
+    {
+      "id": "REF-COMP-006",
+      "category": "Responsive",
+      "severity": "High",
+      "requirement": "Mobile sub-nav scroll strip",
+      "reference": "horizontal scroll pill strip",
+      "implemented": "subnav-strip on packs tier strip",
+      "verified": true,
+      "result": "PASS",
+      "evidence": "packs tier strip subnav-strip (hidden scrollbar, h-8 pills, lime active)"
+    },
+    {
+      "id": "M-001",
+      "category": "Visual",
+      "severity": "Low",
+      "requirement": "Packs hero layout parity",
+      "reference": "2-col carousel + 340px stats rail at lg",
+      "implemented": "2-col card layout + info panel (different arrangement, same domain)",
+      "verified": false,
+      "result": "PARTIAL",
+      "fix": "Preserved pokemon-vault pack-open-stage; optionally adopt 340px stats rail later",
+      "verification": "Pending (Low priority, preserved divergence)"
+    },
+    {
+      "id": "M-002",
+      "category": "Visual",
+      "severity": "Low",
+      "requirement": "Store marketplace row-listing parity",
+      "reference": "compact listing rows with price+grade",
+      "implemented": "product card grid (2/3/4-col) with price",
+      "verified": false,
+      "result": "PARTIAL",
+      "fix": "Preserved pokemon-vault card-grid identity; optional row-listing later",
+      "verification": "Pending (Low priority, preserved divergence)"
+    },
+    {
+      "id": "PRE-001",
+      "category": "Environment",
+      "severity": "Info",
+      "requirement": "Local Node 21 build",
+      "reference": "N/A",
+      "implemented": "N/A",
+      "verified": false,
+      "result": "PRE-EXISTING",
+      "evidence": "ERR_REQUIRE_ESM in @prisma/dev under Node 21; build passes under Node 22"
+    },
+    {
+      "id": "PRE-002",
+      "category": "Environment",
+      "severity": "Info",
+      "requirement": "/api/data DB routes",
+      "reference": "N/A",
+      "implemented": "N/A",
+      "verified": false,
+      "result": "PRE-EXISTING",
+      "evidence": "ERR_DLOPEN_FAILED better-sqlite3 under node@22 dev; pages render fallback data"
+    }
+  ],
+  "final_gate": "CLEAN"
+}

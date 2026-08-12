@@ -68,3 +68,16 @@ preserved.
   48/56px, pill tabs, 0 horizontal overflow at 390/768/1440 — **PASS**
 - Automated tests: none in repo (NOT AVAILABLE); build blocked locally by
   Node 21/Prisma env issue (PRE-EXISTING)
+
+## Post-morph fix — /packs page DB (2026-08-11)
+
+**Problem:** /packs (and other DB pages) showed empty skeletons — `/api/data`
+500 `ERR_DLOPEN_FAILED` from `@prisma/adapter-better-sqlite3` loading a **nested
+better-sqlite3** built for Node 21 ABI (120) that fails to dlopen under Node 22
+(ABI 127).
+
+**Fix:** `package.json` adds
+`overrides: { "@prisma/adapter-better-sqlite3": { "better-sqlite3": "$better-sqlite3" } }`
+so the adapter always resolves the hoisted root better-sqlite3 (Node-22-compatible).
+Verified: `/api/data?resource=packs` returns real SQLite rows; /packs renders all
+8 pack tiers + Buy Pack, 0 console errors.
