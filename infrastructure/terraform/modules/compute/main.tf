@@ -227,8 +227,8 @@ resource "aws_ecs_service" "api" {
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 60
   wait_for_steady_state              = true
-  depends_on = [aws_iam_role_policy_attachment.logs]
-  tags       = merge(var.tags, { Name = "${var.name}-api-service" })
+  depends_on                         = [aws_iam_role_policy_attachment.logs]
+  tags                               = merge(var.tags, { Name = "${var.name}-api-service" })
 }
 
 resource "aws_ecs_service" "worker" {
@@ -247,8 +247,8 @@ resource "aws_ecs_service" "worker" {
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 60
   wait_for_steady_state              = true
-  depends_on = [aws_iam_role_policy_attachment.logs]
-  tags       = merge(var.tags, { Name = "${var.name}-worker-service" })
+  depends_on                         = [aws_iam_role_policy_attachment.logs]
+  tags                               = merge(var.tags, { Name = "${var.name}-worker-service" })
 }
 
 # ── Autoscaling (api) ───────────────────────────────────────────────────────
