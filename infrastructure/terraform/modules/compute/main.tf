@@ -221,6 +221,12 @@ resource "aws_ecs_service" "api" {
     container_name   = "api"
     container_port   = var.api_port
   }
+  # Rolling deploy safety (§80): minimum 100% healthy, max 200% during rollout —
+  # a new task only receives traffic after the ALB /health/ready check passes.
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+  health_check_grace_period_seconds  = 60
+  wait_for_steady_state              = true
   depends_on = [aws_iam_role_policy_attachment.logs]
   tags       = merge(var.tags, { Name = "${var.name}-api-service" })
 }
@@ -236,6 +242,11 @@ resource "aws_ecs_service" "worker" {
     security_groups  = [var.app_sg_id]
     assign_public_ip = false
   }
+  # Rolling deploy safety (§80) for the headless worker.
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+  health_check_grace_period_seconds  = 60
+  wait_for_steady_state              = true
   depends_on = [aws_iam_role_policy_attachment.logs]
   tags       = merge(var.tags, { Name = "${var.name}-worker-service" })
 }

@@ -1,9 +1,10 @@
 name: CD — Deploy
 
-# CD pipeline (§78-79): on main → build immutable images (git SHA tag, never
-# latest-only) → test → push GHCR → deploy staging → smoke → MANUAL approval →
-# deploy prod → health → monitor. No laptop deploys: only this workflow
-# (or the Terraform apply in CI) touches the environments.
+# CD pipeline (§78-82): on main → build immutable images (git SHA tag, never
+# latest-only) → test → push GHCR → migrate staging DB → deploy staging →
+# smoke → MANUAL approval → migrate prod DB → deploy prod → health → monitor
+# (with AUTO-ROLLBACK on 5xx spike) → rollback job. No laptop deploys: only
+# this workflow (or the Terraform apply in CI) touches the environments.
 on:
   push:
     branches: [main]
@@ -19,6 +20,8 @@ env:
   IMAGE_BASE: ghcr.io/jymchng/pokemon-vault
   # Immutable tag: git SHA (+ version + build metadata). Never 'latest'-only.
   IMAGE_TAG: ${{ github.sha }}
+  # Previous release SHA — used for auto/manual rollback (deploy-safety §80-82).
+  PREV_TAG: ${{ github.event.before || github.sha }}
 
 jobs:
   # ── build immutable images ────────────────────────────────────────────────
@@ -33,6 +36,8 @@ jobs:
       web: ${{ env.REGISTRY }}/jymchng/pokemon-vault/web:${{ env.IMAGE_TAG }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # HEAD~1 available for rollback
       - uses: docker/setup-buildx-action@v3
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -77,9 +82,46 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ── migrate staging DB (BEFORE new code sees traffic) ─────────────────────
+  migrate-db:
+    needs: build-images
+    runs-on: ubuntu-22.04
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: eu-central-1
+      - name: Run migrations against staging DB (ECS run-task, waits for exit)
+        run: |
+          set -euo pipefail
+          SUBNETS=$(aws ec2 describe-subnets \
+            --filters "Name=tag:Name,Values=pv-staging-private-0,pv-staging-private-1" \
+            --query "Subnets[].SubnetId" --output text | tr '\t' ',')
+          SG=$(aws ec2 describe-security-groups \
+            --filters "Name=tag:Name,Values=pv-staging-sg-app" \
+            --query "SecurityGroups[0].GroupId" --output text)
+          TASK=$(aws ecs run-task \
+            --cluster pv-staging-cluster --launch-type FARGATE \
+            --task-definition pv-staging-api \
+            --overrides '{"containerOverrides":[{"name":"api","command":["sh","-c","pnpm --filter @pokemon-vault/api db:migrate:deploy"]}]}' \
+            --network-configuration "awsvpcConfiguration={subnets=${SUBNETS},securityGroups=${SG},assignPublicIp=DISABLED}" \
+            --query "tasks[0].taskArn" --output text)
+          echo "migration task: ${TASK}"
+          aws ecs wait tasks-stopped --cluster pv-staging-cluster --tasks "${TASK##*/}"
+          CODE=$(aws ecs describe-tasks --cluster pv-staging-cluster \
+            --tasks "${TASK##*/}" --query "tasks[0].containers[0].exitCode" --output text)
+          echo "migration exit code: ${CODE}"
+          test "${CODE}" = "0"   # fail the pipeline if the migration failed
+
   # ── deploy staging → smoke ────────────────────────────────────────────────
   deploy-staging:
-    needs: build-images
+    needs: [build-images, migrate-db]
     runs-on: ubuntu-22.04
     environment: staging
     permissions:
@@ -111,7 +153,7 @@ jobs:
             https://staging-api.pokemon-vault.dev/api/v1/health/ready | tee /tmp/staging-health.json
           python3 -c "import json,sys; d=json.load(open('/tmp/staging-health.json')); assert d['status']=='ok', d"
 
-  # ── manual approval gate → deploy prod ────────────────────────────────────
+  # ── manual approval gate → migrate prod → deploy prod ─────────────────────
   deploy-prod:
     needs: deploy-staging
     runs-on: ubuntu-22.04
@@ -128,6 +170,27 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_PRODUCTION }}
           aws-region: eu-central-1
+      - name: Run migrations against production DB (before rollout)
+        run: |
+          set -euo pipefail
+          SUBNETS=$(aws ec2 describe-subnets \
+            --filters "Name=tag:Name,Values=pv-prod-private-0,pv-prod-private-1" \
+            --query "Subnets[].SubnetId" --output text | tr '\t' ',')
+          SG=$(aws ec2 describe-security-groups \
+            --filters "Name=tag:Name,Values=pv-prod-sg-app" \
+            --query "SecurityGroups[0].GroupId" --output text)
+          TASK=$(aws ecs run-task \
+            --cluster pv-prod-cluster --launch-type FARGATE \
+            --task-definition pv-prod-api \
+            --overrides '{"containerOverrides":[{"name":"api","command":["sh","-c","pnpm --filter @pokemon-vault/api db:migrate:deploy"]}]}' \
+            --network-configuration "awsvpcConfiguration={subnets=${SUBNETS},securityGroups=${SG},assignPublicIp=DISABLED}" \
+            --query "tasks[0].taskArn" --output text)
+          echo "migration task: ${TASK}"
+          aws ecs wait tasks-stopped --cluster pv-prod-cluster --tasks "${TASK##*/}"
+          CODE=$(aws ecs describe-tasks --cluster pv-prod-cluster \
+            --tasks "${TASK##*/}" --query "tasks[0].containers[0].exitCode" --output text)
+          echo "migration exit code: ${CODE}"
+          test "${CODE}" = "0"
       - name: Apply Terraform (production, immutable SHA images)
         working-directory: infrastructure/terraform/environments/production
         run: |
@@ -144,22 +207,47 @@ jobs:
           curl -fsS --retry 15 --retry-delay 10 \
             https://api.pokemon-vault.dev/api/v1/health/ready | tee /tmp/prod-health.json
           python3 -c "import json,sys; d=json.load(open('/tmp/prod-health.json')); assert d['status']=='ok', d"
-      - name: Monitor — post-deploy watch (5xx + latency via CloudWatch)
+      - name: Monitor + AUTO-ROLLBACK (5xx spike in post-deploy window)
         run: |
-          echo "Post-deploy monitoring window: 10 min (see docs/observability/alerting.md)"
-          # Optional: wait 60s and assert no new 5xx alarm in ALB metric
-          sleep 60
-          aws cloudwatch get-metric-statistics \
+          echo "Post-deploy monitoring window: 5 min (see docs/observability/alerting.md)"
+          sleep 120
+          FIVEX=$(aws cloudwatch get-metric-statistics \
             --namespace AWS/ApplicationELB --metric-name HTTPCode_Target_5XX_Count \
             --dimensions Name=LoadBalancer,Value=pv-prod-alb \
             --start-time "$(date -u -d '-5 minutes' +%Y-%m-%dT%H:%M:%SZ)" \
             --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --period 300 --statistics Sum \
-            --region eu-central-1 | tee /tmp/prod-5xx.json
+            --region eu-central-1 \
+            --query "sum(Datapoints[].Sum)" --output text)
+          echo "5xx in window: ${FIVEX}"
+          if [ -n "${FIVEX}" ] && [ "${FIVEX%.*}" -ge "10" ]; then
+            echo "::error::5xx spike detected (${FIVEX}) — triggering auto-rollback to ${{ env.PREV_TAG }}"
+            echo "image_api=${{ env.IMAGE_BASE }}/api:${{ env.PREV_TAG }}" >> .tfvars-rollback
+            echo "image_worker=${{ env.IMAGE_BASE }}/worker:${{ env.PREV_TAG }}" >> .tfvars-rollback
+            cd infrastructure/terraform/environments/production
+            terraform init -input=false
+            terraform apply -auto-approve -var-file ../../../.tfvars-rollback -var-file terraform.tfvars
+            echo "AUTO-ROLLBACK complete — previous SHA ${{ env.PREV_TAG }} is live"
+          else
+            echo "No 5xx spike — deploy healthy"
+          fi
 
-  # ── rollback helper (documented; run manually via workflow_dispatch) ──────
+  # ── manual rollback helper (documented; run via workflow_dispatch) ────────
   rollback:
     if: github.event_name == 'workflow_dispatch' && inputs.rollback == 'true'
     runs-on: ubuntu-22.04
     environment: production
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - run: echo "Rollback = redeploy previous immutable SHA via Terraform (see docs/operations/disaster-recovery.md §7)"
+      - uses: actions/checkout@v4
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PRODUCTION }}
+          aws-region: eu-central-1
+      - name: Rollback = redeploy previous immutable SHA via Terraform
+        working-directory: infrastructure/terraform/environments/production
+        run: |
+          echo "Set image_api/image_worker to the previous git SHA (see docs/operations/deploy-safety.md §4)"
+          echo "Migrations are forward-only — rollback uses the corrective-migration path (deploy-safety.md §5)."
