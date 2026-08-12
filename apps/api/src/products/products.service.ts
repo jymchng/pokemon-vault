@@ -80,7 +80,9 @@ export class ProductsService {
     const slug = input.slug ?? slugify(input.name);
     if (!slug) throw new BadRequestException("A valid slug or name is required");
     try {
-      return await this.repo.create({ ...input, slug });
+      const product = await this.repo.create({ ...input, slug });
+      await this.invalidateProductsCache(); // §94: cache invalidation on mutation
+      return product;
     } catch (err: any) {
       if (err?.code === "P2002") {
         throw new ConflictException("SKU or slug already exists");
@@ -101,6 +103,7 @@ export class ProductsService {
       const id = await this.resolveProductId(slugOrId);
       const product = await this.repo.update(id, input);
       if (!product) throw AppErrors.productNotFound();
+      await this.invalidateProductsCache(); // §94: cache invalidation on mutation
       return product;
     } catch (err: any) {
       if (err?.code === "P2025") throw new NotFoundException("Product not found");
