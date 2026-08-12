@@ -58,6 +58,7 @@ model User {
   notifications  Notification[]
   notificationPreference NotificationPreference?
   auditLogs      AuditLog[]
+  collectionActivities CollectionActivity[]
 
   @@index([status])
   @@index([role])
@@ -567,6 +568,31 @@ model CollectionItem {
   @@unique([collectionId, cardId])
   @@index([collectionId])
   @@index([cardId])
+}
+
+// Immutable activity stream (§32). Historical records are never mutated.
+enum CollectionActivityType {
+  CARD_ADDED
+  CARD_REMOVED
+  PACK_OPENED
+  ORDER_COMPLETED
+  REWARD_EARNED
+  REWARD_REDEEMED
+}
+
+model CollectionActivity {
+  id         String                @id @default(uuid())
+  userId     String
+  eventType  CollectionActivityType
+  entityType String // card | pack | order | reward | collection
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
 }
 
 // ── Packs ──────────────────────────────────────────────────────────────────
