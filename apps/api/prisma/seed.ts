@@ -1,9 +1,9 @@
 /**
- * Pokémon Vault — API seed (PostgreSQL).
- * Deterministic, safe to rerun: deletes then recreates seed data within one
+ * Pokémon Vault — API seed (PostgreSQL, full G4 schema).
+ * Deterministic, safe to rerun: deletes then recreates seed data in one
  * transaction. Run: pnpm --filter @pokemon-vault/api db:seed
  */
-import { PrismaClient } from "../src/generated/prisma/client.js";
+import { PrismaClient, type ProductType } from "../src/generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 
@@ -30,14 +30,14 @@ const PACKS = [
 ];
 
 const PRODUCTS = [
-  { name: "Charizard ex — PSA 10", sku: "CARD-CHZ-PSA10", slug: "charizard-ex-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 489.99, stock: 3, setName: "Pokémon 151" },
-  { name: "Pikachu Illustration Rare — PSA 10", sku: "CARD-PIK-ILLU-PSA10", slug: "pikachu-illustration-rare-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 299.99, stock: 5, setName: "Pokémon 151" },
-  { name: "Umbreon VMAX — PSA 10", sku: "CARD-UMB-VMAX-PSA10", slug: "umbreon-vmax-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 749.99, stock: 2, setName: "Evolving Skies" },
-  { name: "Mew ex — PSA 10", sku: "CARD-MEW-EX-PSA10", slug: "mew-ex-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 189.99, stock: 6, setName: "Pokémon 151" },
-  { name: "Pokémon 151 Booster Pack", sku: "PKG-SV151", slug: "pokemon-151-booster-pack", category: "Booster Packs", productType: "BOOSTER_PACK", price: 5.99, stock: 120, setName: "Pokémon 151" },
-  { name: "Obsidian Flames Booster Pack", sku: "PKG-OBF", slug: "obsidian-flames-booster-pack", category: "Booster Packs", productType: "BOOSTER_PACK", price: 4.99, stock: 100, setName: "Obsidian Flames" },
-  { name: "Elite Trainer Box — Pokémon 151", sku: "ETB-SV151", slug: "elite-trainer-box-pokemon-151", category: "Elite Trainer Boxes", productType: "ELITE_TRAINER_BOX", price: 59.99, stock: 15, setName: "Pokémon 151" },
-  { name: "Pokémon Vault Sleeves — Gold", sku: "ACC-SLV-GLD", slug: "pokemon-vault-sleeves-gold", category: "Accessories", productType: "ACCESSORY", price: 9.99, stock: 200, setName: null },
+  { name: "Charizard ex — PSA 10", sku: "CARD-CHZ-PSA10", slug: "charizard-ex-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 489.99, setName: "Pokémon 151" },
+  { name: "Pikachu Illustration Rare — PSA 10", sku: "CARD-PIK-ILLU-PSA10", slug: "pikachu-illustration-rare-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 299.99, setName: "Pokémon 151" },
+  { name: "Umbreon VMAX — PSA 10", sku: "CARD-UMB-VMAX-PSA10", slug: "umbreon-vmax-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 749.99, setName: "Evolving Skies" },
+  { name: "Mew ex — PSA 10", sku: "CARD-MEW-EX-PSA10", slug: "mew-ex-psa-10", category: "Graded Cards", productType: "GRADED_CARD", price: 189.99, setName: "Pokémon 151" },
+  { name: "Pokémon 151 Booster Pack", sku: "PKG-SV151", slug: "pokemon-151-booster-pack", category: "Booster Packs", productType: "BOOSTER_PACK", price: 5.99, setName: "Pokémon 151" },
+  { name: "Obsidian Flames Booster Pack", sku: "PKG-OBF", slug: "obsidian-flames-booster-pack", category: "Booster Packs", productType: "BOOSTER_PACK", price: 4.99, setName: "Obsidian Flames" },
+  { name: "Elite Trainer Box — Pokémon 151", sku: "ETB-SV151", slug: "elite-trainer-box-pokemon-151", category: "Elite Trainer Boxes", productType: "ELITE_TRAINER_BOX", price: 59.99, setName: "Pokémon 151" },
+  { name: "Pokémon Vault Sleeves — Gold", sku: "ACC-SLV-GLD", slug: "pokemon-vault-sleeves-gold", category: "Accessories", productType: "ACCESSORY", price: 9.99, setName: null },
 ];
 
 const CARDS = [
@@ -46,12 +46,6 @@ const CARDS = [
   { name: "Umbreon VMAX", setName: "Evolving Skies", cardNumber: "215/203", rarity: "Special Illustration Rare", type: "Darkness", grade: "PSA_10", marketPrice: 749.99, owned: true, quantity: 2 },
   { name: "Mew ex", setName: "Pokémon 151", cardNumber: "151/197", rarity: "Double Rare", type: "Psychic", grade: "PSA_10", marketPrice: 189.99, owned: true, quantity: 3 },
   { name: "Snorlax", setName: "Obsidian Flames", cardNumber: "139/197", rarity: "Illustration Rare", type: "Colorless", grade: "UNGRADED", marketPrice: 24.99, owned: false, quantity: 0 },
-];
-
-const LATEST_PULLS = [
-  { title: "Charizard-Holo 1st Edition", grader: "CGC", delta: 4662, value: 20000 },
-  { title: "Charizard-Holo PSA 1", grader: "PSA", delta: 3948, value: 17000 },
-  { title: "Arcanine-Holo PSA 10 Aquapolis", grader: "PSA", delta: 3471, value: 15000 },
 ];
 
 const REWARD_TIERS = [
@@ -63,61 +57,141 @@ const REWARD_TIERS = [
 ];
 
 async function main() {
-  console.log("Seeding Pokémon Vault (PostgreSQL)...");
+  console.log("Seeding Pokémon Vault (PostgreSQL, G4 schema)...");
 
   await prisma.$transaction(async (tx) => {
-    // Wipe seed data (deterministic rerun)
-    await tx.platformPull.deleteMany();
-    await tx.latestPull.deleteMany();
-    await tx.shipment.deleteMany();
-    await tx.address.deleteMany();
-    await tx.wayToWin.deleteMany();
-    await tx.leaderboardEntry.deleteMany();
+    // Wipe seed data (deterministic rerun) — FK-aware order
+    await tx.notification.deleteMany();
+    await tx.auditLog.deleteMany();
+    await tx.mediaAsset.deleteMany();
+    await tx.rewardRedemption.deleteMany();
+    await tx.rewardTransaction.deleteMany();
+    await tx.reward.deleteMany();
+    await tx.rewardAccount.deleteMany();
     await tx.rewardTier.deleteMany();
-    await tx.activityEvent.deleteMany();
-    await tx.order.deleteMany();
+    await tx.packCard.deleteMany();
+    await tx.packOpening.deleteMany();
+    await tx.packContent.deleteMany();
     await tx.pack.deleteMany();
-    await tx.product.deleteMany();
+    await tx.collectionItem.deleteMany();
+    await tx.collection.deleteMany();
+    await tx.wishlistItem.deleteMany();
+    await tx.cartItem.deleteMany();
+    await tx.cart.deleteMany();
+    await tx.inventoryMovement.deleteMany();
+    await tx.inventoryItem.deleteMany();
+    await tx.inventoryLocation.deleteMany();
+    await tx.productVariant.deleteMany();
+    await tx.productCardLink.deleteMany();
+    await tx.cardGrade.deleteMany();
     await tx.card.deleteMany();
     await tx.set.deleteMany();
+    await tx.product.deleteMany();
+    await tx.paymentWebhookEvent.deleteMany();
+    await tx.payment.deleteMany();
+    await tx.shipmentItem.deleteMany();
+    await tx.shipment.deleteMany();
+    await tx.orderItem.deleteMany();
+    await tx.order.deleteMany();
+    await tx.address.deleteMany();
+    await tx.refreshToken.deleteMany();
+    await tx.authSession.deleteMany();
+    await tx.leaderboardEntry.deleteMany();
+    await tx.wayToWin.deleteMany();
     await tx.user.deleteMany();
 
     // Users (admin + test customer) — Argon2id hashed
-    const adminHash = await argon2.hash("Admin123!");
-    const customerHash = await argon2.hash("Customer123!");
-    await tx.user.createMany({
-      data: [
-        { email: "admin@pokemon-vault.dev", passwordHash: adminHash, role: "ADMIN", displayName: "Vault Admin", status: "ACTIVE" },
-        { email: "customer@pokemon-vault.dev", passwordHash: customerHash, role: "CUSTOMER", displayName: "Ash Ketchum", status: "ACTIVE" },
-      ],
+    const admin = await tx.user.create({
+      data: { email: "admin@pokemon-vault.dev", passwordHash: await argon2.hash("Admin123!"), role: "ADMIN", displayName: "Vault Admin" },
+    });
+    const customer = await tx.user.create({
+      data: { email: "customer@pokemon-vault.dev", passwordHash: await argon2.hash("Customer123!"), role: "CUSTOMER", displayName: "Ash Ketchum" },
     });
 
     // Sets
-    await tx.set.createMany({
-      data: SETS.map((s) => {
-        const { releaseYear, ...rest } = s;
-        return { ...rest, releaseDate: new Date(`${releaseYear}-01-01`), logoUrl: "/images/placeholder-card.png", symbolUrl: "/images/placeholder-card.png" };
-      }),
-    });
-    const setMap = new Map(SETS.map((s) => [s.slug, s.name]));
+    const setRows = [];
+    for (const s of SETS) {
+      const { releaseYear, ...rest } = s;
+      setRows.push(await tx.set.create({
+        data: { ...rest, releaseDate: new Date(`${releaseYear}-01-01`), logoUrl: "/images/placeholder-card.png", symbolUrl: "/images/placeholder-card.png" },
+      }));
+    }
+    const setBySlug = new Map(setRows.map((s) => [s.slug, s]));
 
-    // Cards
-    await tx.card.createMany({
-      data: CARDS.map((c) => ({ ...c, language: "EN", imageUrl: "/images/placeholder-card.png", acquiredAt: c.owned ? new Date("2026-01-15") : null })),
-    });
+    // Cards (link to sets)
+    const cardRows = [];
+    for (const c of CARDS) {
+      const set = setBySlug.get({ "Pokémon 151": "sv151", "Obsidian Flames": "obf", "Scarlet & Violet": "sv1", "Paldean Fates": "paf", "Temporal Forces": "twm" }[c.setName] ?? "sv151")!;
+      cardRows.push(await tx.card.create({
+        data: {
+          name: c.name, setName: c.setName, cardNumber: c.cardNumber, rarity: c.rarity,
+          type: c.type, grade: c.grade, marketPrice: c.marketPrice, language: "EN",
+          imageUrl: "/images/placeholder-card.png",
+          setId: set?.id ?? null,
+        },
+      }));
+    }
 
-    // Products (inventory via stock)
-    await tx.product.createMany({
-      data: PRODUCTS.map((p) => ({ ...p, currency: "USD", status: "ACTIVE", availability: p.stock > 0 ? "In Stock" : "Out of Stock", image: "/images/placeholder-card.png", rating: 4.9 })),
-    });
+    // Products (inventory tracked via InventoryItem)
+const productRows = [];
+for (const p of PRODUCTS) {
+  const created = await tx.product.create({
+    data: {
+      name: p.name,
+      sku: p.sku,
+      slug: p.slug,
+      category: p.category,
+      productType: p.productType as unknown as ProductType,
+      setName: p.setName,
+      price: p.price,
+      currency: "USD",
+      status: "ACTIVE",
+      description: p.name,
+    },
+  });
+  productRows.push(created);
+  // Create an inventory item (available) for each product
+  await tx.inventoryItem.create({
+    data: {
+      productId: created.id,
+      status: "AVAILABLE",
+      quantity: 50,
+      reserved: 0,
+    },
+  });
+}
 
-    // Packs
-    await tx.pack.createMany({
-      data: PACKS.map((p) => ({ ...p, tagline: `${p.name} — open a pack, discover your next favorite card.`, availability: "In Stock", image: "/images/placeholder-card.png" })),
-    });
+// Packs + contents
+    const packRows = [];
+    for (const pk of PACKS) {
+      packRows.push(await tx.pack.create({
+        data: { ...pk, tagline: `${pk.name} — open a pack, discover your next favorite card.`, availability: "In Stock", image: "/images/placeholder-card.png", setName: pk.name },
+      }));
+    }
 
-    // Rewards
+    // Cart for customer
+    const cart = await tx.cart.create({ data: { userId: customer.id } });
+    await tx.cartItem.create({ data: { cartId: cart.id, productId: productRows[4].id, quantity: 2 } });
+
+    // Wishlist
+    await tx.wishlistItem.create({ data: { userId: customer.id, productId: productRows[0].id } });
+
+    // Collection + items for customer
+    const collection = await tx.collection.create({ data: { userId: customer.id } });
+    for (let i = 0; i < cardRows.length; i++) {
+      await tx.collectionItem.create({
+        data: { collectionId: collection.id, cardId: cardRows[i].id, quantity: i === 2 ? 2 : 1, source: "PURCHASE", grade: CARDS[i].grade },
+      });
+    }
+
+    // Rewards: account + ledger + reward + redemption
+    const rewardAccount = await tx.rewardAccount.create({ data: { userId: customer.id, xp: 1680 } });
+    await tx.rewardTransaction.create({ data: { accountId: rewardAccount.id, delta: 1680, reason: "PURCHASE", reference: "PV-10001" } });
+    const reward = await tx.reward.create({ data: { name: "Free Booster Pack", description: "Redeem for one free booster pack", xpCost: 500, inventory: 100 } });
+    await tx.rewardRedemption.create({ data: { accountId: rewardAccount.id, rewardId: reward.id, userId: customer.id } });
     await tx.rewardTier.createMany({ data: REWARD_TIERS });
+
+    // Leaderboard + ways to win
     await tx.wayToWin.createMany({
       data: [
         { title: "Open packs", body: "Rip digital packs for real, graded, vaulted cards." },
@@ -133,41 +207,33 @@ async function main() {
       ],
     });
 
-    // Latest pulls + platform pulls
-    await tx.latestPull.createMany({ data: LATEST_PULLS });
-    await tx.platformPull.createMany({
-      data: [
-        { title: "Charizard ex", price: 489.99, timeAgo: "2m", grader: "PSA" },
-        { title: "Umbreon VMAX", price: 749.99, timeAgo: "8m", grader: "CGC" },
-        { title: "Mew ex", price: 189.99, timeAgo: "14m", grader: "PSA" },
-      ],
-    });
-
-    // Order + address + shipment (PV-10001)
+    // Order + items + payment + shipment + address
     const order = await tx.order.create({
       data: {
-        orderNumber: "PV-10001",
-        email: "customer@pokemon-vault.dev",
-        status: "DELIVERED",
-        subtotal: 65.98, discount: 0, shipping: 4.99, tax: 4.62, total: 75.59,
+        orderNumber: "PV-10001", userId: customer.id, email: "customer@pokemon-vault.dev",
+        status: "DELIVERED", subtotal: 65.98, discount: 0, shipping: 4.99, tax: 4.62, total: 75.59,
       },
     });
-    await tx.address.create({
-      data: { userId: null, label: "Home", line1: "1 Pallet Town", city: "Kanto", country: "US", isDefault: true },
+    await tx.orderItem.create({
+      data: { orderId: order.id, productId: productRows[4].id, productName: "Pokémon 151 Booster Pack", sku: "PKG-SV151", unitPrice: 5.99, quantity: 10 },
     });
+    await tx.payment.create({
+      data: { orderId: order.id, provider: "stripe", providerRef: "pi_seed_demo", amount: 75.59, status: "SUCCEEDED", idempotencyKey: "seed-order-1" },
+    });
+    await tx.address.create({ data: { userId: customer.id, label: "Home", line1: "1 Pallet Town", city: "Kanto", country: "US", isDefault: true } });
     await tx.shipment.create({
       data: { orderId: order.id, carrier: "FedEx", trackingNumber: "794657849201", status: "DELIVERED", shippedAt: new Date("2026-07-01"), deliveredAt: new Date("2026-07-04") },
     });
 
-    // Activity (collection milestone + order completed)
-    await tx.activityEvent.createMany({
+    // Activity (audit trail)
+    await tx.auditLog.createMany({
       data: [
-        { userId: null, eventType: "ORDER_COMPLETED", entityType: "Order", entityId: order.id, metadata: { orderNumber: "PV-10001" } },
-        { userId: null, eventType: "CARD_ADDED", entityType: "Card", metadata: { name: "Charizard ex" } },
+        { actorId: admin.id, action: "ORDER_CREATED", resourceType: "Order", resourceId: order.id, ipAddress: "127.0.0.1", userAgent: "seed" },
+        { actorId: admin.id, action: "USER_GRANT_COLLECTION", resourceType: "Collection", resourceId: collection.id, ipAddress: "127.0.0.1", userAgent: "seed" },
       ],
     });
 
-    console.log("Seed complete: 2 users, %d sets, %d cards, %d products, %d packs, %d reward tiers, 1 order, activity.", SETS.length, CARDS.length, PRODUCTS.length, PACKS.length, REWARD_TIERS.length);
+    console.log(`Seed complete: 2 users, ${setRows.length} sets, ${cardRows.length} cards, ${productRows.length} products, ${packRows.length} packs, 1 cart, 1 collection, 1 order, rewards + audit.`);
   });
 }
 

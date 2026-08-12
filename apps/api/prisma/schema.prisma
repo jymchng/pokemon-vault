@@ -1,6 +1,6 @@
 // Pokémon Vault — API database schema (PostgreSQL)
-// G4 expands this schema fully (users, auth, inventory, payments, etc.).
-// This G2 baseline is enough for the local-dev seed + e2e wiring.
+// G4: full domain model. All timestamps stored in UTC (DateTime = timestamptz).
+// Migrations are versioned (prisma/migrations); never auto-sync in production.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,22 +11,88 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  emailVerified Boolean   @default(false)
-  passwordHash String
-  firstName    String?
-  lastName     String?
-  displayName  String?
-  avatarUrl    String?
-  status       String    @default("ACTIVE") // ACTIVE | SUSPENDED | DELETED
-  role         String    @default("CUSTOMER") // CUSTOMER | STAFF | ADMIN | SUPER_ADMIN
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  lastLoginAt  DateTime?
-  deletedAt    DateTime?
+// ── Auth / Users ────────────────────────────────────────────────────────────
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
 }
+
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id             String     @id @default(uuid())
+  email          String     @unique
+  emailVerified  Boolean    @default(false)
+  passwordHash   String
+  firstName      String?
+  lastName       String?
+  displayName    String?
+  avatarUrl      String?
+  status         UserStatus @default(ACTIVE)
+  role           UserRole   @default(CUSTOMER)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  lastLoginAt    DateTime?
+  deletedAt      DateTime?
+
+  sessions       AuthSession[]
+  refreshTokens  RefreshToken[]
+  carts          Cart[]
+  orders         Order[]
+  addresses      Address[]
+  shipmentItems  ShipmentItem[]
+  collection     Collection[]
+  collectionItems CollectionItem[]
+  wishlistItems  WishlistItem[]
+  packOpenings   PackOpening[]
+  rewardAccount  RewardAccount?
+  rewardRedemptions RewardRedemption[]
+  notifications  Notification[]
+  notificationPreference NotificationPreference?
+  auditLogs      AuditLog[]
+
+  @@index([status])
+  @@index([role])
+}
+
+model AuthSession {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  device    String?
+  ip        String?
+  userAgent String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Catalog: Sets, Cards, Grading ──────────────────────────────────────────
 
 model Set {
   id          String   @id @default(uuid())
@@ -41,7 +107,8 @@ model Set {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  cards Card[]
+  cards    Card[]
+  products Product[]
 }
 
 model Card {
@@ -59,39 +126,401 @@ model Card {
   condition   String?
   marketPrice Decimal? @db.Decimal(10, 2)
   population  Int?
-  owned       Boolean  @default(false)
-  quantity    Int      @default(0)
-  acquiredAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  setId  String?
-  setRelation Set? @relation(fields: [setId], references: [id])
-}
-
-model Product {
-  id          String   @id @default(uuid())
-  name        String
-  sku         String   @unique
-  slug        String   @unique
-  description String?
-  category    String?
-  productType String   @default("SINGLE_CARD") // SINGLE_CARD | BOOSTER_PACK | ...
-  setName     String?
-  price       Decimal  @db.Decimal(10, 2)
-  compareAt   Decimal? @db.Decimal(10, 2)
-  currency    String   @default("USD")
-  status      String   @default("ACTIVE") // ACTIVE | DRAFT | ARCHIVED
-  stock       Int      @default(0)
-  rating      Decimal? @db.Decimal(3, 2)
-  availability String  @default("In Stock")
-  image       String?
-  weight      Decimal? @db.Decimal(10, 2)
-  metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
+
+  setId          String?
+  setRelation    Set?    @relation(fields: [setId], references: [id])
+  collectionItems CollectionItem[]
+  packCards      PackCard[]
+  products       ProductCardLink[]
+  cardGrades     CardGrade[]
+
+  @@index([name])
+  @@index([setId])
+  @@index([rarity])
+  @@index([type])
 }
+
+model CardGrade {
+  id                  String  @id @default(uuid())
+  grade               String  @unique // UNGRADED | PSA_10 | PSA_9 | PSA_8 | CGC_10 | CGC_9_5 | BGS_10 | BGS_9_5
+  gradingCompany      String? // PSA | CGC | BGS
+  certificationNumber String?
+  cardId              String
+  createdAt           DateTime @default(now())
+
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+}
+
+// ── Products / variants ────────────────────────────────────────────────────
+
+enum ProductType {
+  SINGLE_CARD
+  BOOSTER_PACK
+  BOOSTER_BOX
+  ELITE_TRAINER_BOX
+  GRADED_CARD
+  ACCESSORY
+  COLLECTION
+  OTHER
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String
+  sku         String        @unique
+  slug        String        @unique
+  description String?
+  category    String?
+  productType ProductType   @default(SINGLE_CARD)
+  setName     String?
+  setId       String?
+  price       Decimal       @db.Decimal(10, 2)
+  compareAt   Decimal?      @db.Decimal(10, 2)
+  currency    String        @default("USD")
+  status      ProductStatus @default(ACTIVE)
+  weight      Decimal?      @db.Decimal(10, 2)
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  variants        ProductVariant[]
+  setRelation     Set?            @relation(fields: [setId], references: [id])
+  inventoryItems  InventoryItem[]
+  cartItems       CartItem[]
+  wishlistItems   WishlistItem[]
+  orderItems      OrderItem[]
+  packContents    PackContent[]
+  cardLinks       ProductCardLink[]
+
+  @@index([category])
+  @@index([status])
+  @@index([productType])
+}
+
+model ProductVariant {
+  id        String   @id @default(uuid())
+  productId String
+  sku       String   @unique
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  cost      Decimal? @db.Decimal(10, 2)
+  barcode   String?
+  weight    Decimal? @db.Decimal(10, 2)
+  status    String   @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductCardLink {
+  id        String @id @default(uuid())
+  productId String
+  cardId    String
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  card    Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, cardId])
+}
+
+// ── Inventory ──────────────────────────────────────────────────────────────
+
+enum InventoryStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  DAMAGED
+  RETURNED
+}
+
+model InventoryItem {
+  id         String          @id @default(uuid())
+  productId  String
+  locationId String?
+  status     InventoryStatus @default(AVAILABLE)
+  quantity   Int             @default(0)
+  reserved   Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  product   Product            @relation(fields: [productId], references: [id])
+  location  InventoryLocation? @relation(fields: [locationId], references: [id])
+  movements InventoryMovement[]
+
+  @@unique([productId, locationId, status])
+  @@index([productId])
+}
+
+model InventoryLocation {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  items InventoryItem[]
+}
+
+model InventoryMovement {
+  id        String   @id @default(uuid())
+  itemId    String
+  change    Int // + / - quantity change
+  reason    String // SALE | RESERVE | RELEASE | RESTOCK | DAMAGE | RETURN
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  item  InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  order Order?        @relation(fields: [orderId], references: [id])
+
+  @@index([itemId])
+  @@index([createdAt])
+}
+
+// ── Cart / Wishlist ────────────────────────────────────────────────────────
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String?  @unique
+  sessionId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+// ── Orders / Payments / Shipping ───────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  orderNumber String      @unique
+  userId      String?
+  email       String?
+  status      OrderStatus @default(PENDING)
+  subtotal    Decimal     @default(0) @db.Decimal(10, 2)
+  discount    Decimal     @default(0) @db.Decimal(10, 2)
+  shipping    Decimal     @default(0) @db.Decimal(10, 2)
+  tax         Decimal     @default(0) @db.Decimal(10, 2)
+  total       Decimal     @default(0) @db.Decimal(10, 2)
+  currency    String      @default("USD")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user        User?       @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+  payment     Payment?
+  shipments   Shipment[]
+  movements   InventoryMovement[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  productId   String?
+  productName String // snapshot at purchase time
+  sku         String
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  quantity    Int
+  tax         Decimal  @default(0) @db.Decimal(10, 2)
+  discount    Decimal  @default(0) @db.Decimal(10, 2)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  orderId       String   @unique
+  provider      String   @default("stripe")
+  providerRef   String?
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("USD")
+  status        String   @default("PENDING") // PENDING | SUCCEEDED | FAILED | REFUNDED
+  idempotencyKey String? @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  order     Order                @relation(fields: [orderId], references: [id])
+  webhooks  PaymentWebhookEvent[]
+}
+
+model PaymentWebhookEvent {
+  id            String   @id @default(uuid())
+  providerEventId String  @unique
+  paymentId      String?
+  type           String
+  payload        Json?
+  processedAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+  @@index([processedAt])
+}
+
+enum ShipmentStatus {
+  PENDING
+  LABEL_CREATED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  EXCEPTION
+}
+
+model Shipment {
+  id              String        @id @default(uuid())
+  orderId         String
+  carrier         String?
+  trackingNumber  String?
+  trackingUrl     String?
+  status          ShipmentStatus @default(PENDING)
+  estimatedDelivery DateTime?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order Order           @relation(fields: [orderId], references: [id])
+  items ShipmentItem[]
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model ShipmentItem {
+  id         String @id @default(uuid())
+  shipmentId String
+  orderItemId String?
+  userId     String?
+  quantity   Int    @default(1)
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id])
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String?
+  label     String?
+  line1     String
+  line2     String?
+  city      String
+  state     String?
+  postal    String?
+  country   String   @default("US")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+// ── Collection ─────────────────────────────────────────────────────────────
+
+enum CollectionSource {
+  PURCHASE
+  PACK_OPENING
+  MANUAL_ENTRY
+  ADMIN_GRANT
+  PROMOTIONAL
+}
+
+model Collection {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   @default("My Collection")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CollectionItem[]
+}
+
+model CollectionItem {
+  id           String           @id @default(uuid())
+  collectionId String
+  userId       String?
+  cardId       String
+  quantity     Int              @default(1)
+  condition    String?
+  grade        String?
+  source       CollectionSource @default(PURCHASE)
+  acquiredAt   DateTime?
+  purchaseOrderId String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  card       Card       @relation(fields: [cardId], references: [id])
+  user       User?      @relation(fields: [userId], references: [id])
+
+  @@unique([collectionId, cardId])
+  @@index([collectionId])
+  @@index([cardId])
+}
+
+// ── Packs ──────────────────────────────────────────────────────────────────
 
 model Pack {
   id          String   @id @default(uuid())
@@ -106,45 +535,197 @@ model Pack {
   setName     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  contents  PackContent[]
+  openings  PackOpening[]
 }
 
-model Order {
+model PackContent {
   id          String   @id @default(uuid())
-  orderNumber String   @unique
-  userId      String?
-  email       String?
-  status      String   @default("PENDING") // PENDING..DELIVERED | CANCELLED | REFUNDED
-  subtotal    Decimal  @default(0) @db.Decimal(10, 2)
-  discount    Decimal  @default(0) @db.Decimal(10, 2)
-  shipping    Decimal  @default(0) @db.Decimal(10, 2)
-  tax         Decimal  @default(0) @db.Decimal(10, 2)
-  total       Decimal  @default(0) @db.Decimal(10, 2)
-  currency    String   @default("USD")
+  packId      String
+  productId   String?
+  rarity      String?
+  probability Decimal? @db.Decimal(8, 6) // 0..1
+  createdAt   DateTime @default(now())
+
+  pack    Pack     @relation(fields: [packId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([packId])
+}
+
+model PackOpening {
+  id          String   @id @default(uuid())
+  idempotencyKey String @unique
+  userId      String
+  packId      String
+  randomizationVersion Int @default(1)
+  createdAt   DateTime @default(now())
+
+  user  User       @relation(fields: [userId], references: [id])
+  pack  Pack       @relation(fields: [packId], references: [id])
+  cards PackCard[]
+
+  @@index([userId])
+  @@index([packId])
+}
+
+model PackCard {
+  id        String   @id @default(uuid())
+  openingId String
+  cardId    String
+  createdAt DateTime @default(now())
+
+  opening PackOpening @relation(fields: [openingId], references: [id], onDelete: Cascade)
+  card    Card        @relation(fields: [cardId], references: [id])
+
+  @@index([openingId])
+}
+
+// ── Rewards (Collector XP — internal loyalty, NOT crypto) ──────────────────
+
+model RewardAccount {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  xp        Int      @default(0) // cached balance; ledger is the source of truth
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions RewardTransaction[]
+  redemptions  RewardRedemption[]
+}
+
+model RewardTransaction {
+  id        String   @id @default(uuid())
+  accountId String
+  delta     Int // +XP / -XP
+  reason    String // PURCHASE | SET_COMPLETION | PACK_OPENING | PROMOTION | MILESTONE | REDEMPTION
+  reference String?
+  createdAt DateTime @default(now())
+
+  account RewardAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+model Reward {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  xpCost      Int
+  inventory   Int      @default(0)
+  status      String   @default("ACTIVE") // ACTIVE | DISABLED
+  expiresAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  redemptions RewardRedemption[]
 }
 
-model ActivityEvent {
-  id         String   @id @default(uuid())
-  userId     String?
-  eventType  String // CARD_ADDED | PACK_OPENED | ORDER_COMPLETED | REWARD_EARNED ...
-  entityType String?
-  entityId   String?
-  metadata   Json?
-  createdAt  DateTime @default(now())
-}
-
-model RewardTier {
+model RewardRedemption {
   id        String   @id @default(uuid())
-  name      String
-  level     Int      @unique
-  xpRequired Int
+  accountId String
+  rewardId  String
+  userId    String?
+  status    String   @default("REDEEMED") // REDEEMED | FULFILLED | CANCELLED
+  createdAt DateTime @default(now())
+
+  account RewardAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  reward  Reward        @relation(fields: [rewardId], references: [id])
+  user    User?         @relation(fields: [userId], references: [id])
+
+  @@unique([accountId, rewardId])
+  @@index([accountId])
+}
+
+// ── Notifications / Media / Audit ──────────────────────────────────────────
+
+enum NotificationType {
+  ORDER_UPDATE
+  SHIPPING_UPDATE
+  REWARD_AVAILABLE
+  COLLECTION_MILESTONE
+  PROMOTION
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([readAt])
+}
+
+model NotificationPreference {
+  id             String           @id @default(uuid())
+  userId         String           @unique
+  orderUpdates   Boolean          @default(true)
+  shippingUpdates Boolean         @default(true)
+  rewardAvailable Boolean         @default(true)
+  collectionMilestones Boolean     @default(true)
+  promotions      Boolean          @default(true)
+  systemMessages  Boolean          @default(true)
+  emailOptIn      Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MediaAsset {
+  id        String   @id @default(uuid())
+  bucket    String
+  key       String   @unique
+  mimeType  String
+  size      Int
+  width     Int?
+  height    Int?
+  checksum  String?
   createdAt DateTime @default(now())
 }
 
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?
+  action       String
+  resourceType String?
+  resourceId   String?
+  before       Json?
+  after        Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+}
+
+// ── Content / demo tables (used by the storefront rewards + leaderboard) ────
+
+model RewardTier {
+  id         String   @id @default(uuid())
+  name       String
+  level      Int      @unique
+  xpRequired Int
+  createdAt  DateTime @default(now())
+}
+
 model LeaderboardEntry {
-  id     String @id @default(uuid())
-  wallet String @unique
+  id     String  @id @default(uuid())
+  wallet String  @unique
   volume Decimal @default(0) @db.Decimal(10, 2)
   rank   Int?
 }
@@ -153,45 +734,4 @@ model WayToWin {
   id    String @id @default(uuid())
   title String
   body  String
-}
-
-model Address {
-  id        String @id @default(uuid())
-  userId    String?
-  label     String?
-  line1     String
-  line2     String?
-  city      String
-  state     String?
-  postal    String?
-  country   String @default("US")
-  isDefault Boolean @default(false)
-}
-
-model Shipment {
-  id           String @id @default(uuid())
-  orderId      String?
-  carrier      String?
-  trackingNumber String?
-  trackingUrl  String?
-  status       String @default("PENDING") // PENDING..DELIVERED | EXCEPTION
-  estimatedDelivery DateTime?
-  shippedAt    DateTime?
-  deliveredAt  DateTime?
-}
-
-model LatestPull {
-  id      String @id @default(uuid())
-  title   String
-  grader  String
-  delta   Decimal @db.Decimal(10, 2)
-  value   Decimal @db.Decimal(12, 2)
-}
-
-model PlatformPull {
-  id       String @id @default(uuid())
-  title    String
-  price    Decimal @db.Decimal(10, 2)
-  timeAgo  String
-  grader   String
 }
