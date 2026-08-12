@@ -4,6 +4,7 @@ import { CorrelationService } from "./correlation.service";
 import { StructuredLogger } from "./structured-logger";
 import { IdempotencyService } from "./idempotency.service";
 import { AbuseProtectionService } from "./abuse-protection.service";
+import { CacheService } from "./cache.service";
 
 /**
  * Global cross-cutting concerns (§65-66): request correlation (request_id +
@@ -17,6 +18,7 @@ import { AbuseProtectionService } from "./abuse-protection.service";
     CorrelationService,
     IdempotencyService,
     AbuseProtectionService,
+    CacheService,
     {
       provide: StructuredLogger,
       // Factory injection — the constructor's service-name string must not be
@@ -26,7 +28,7 @@ import { AbuseProtectionService } from "./abuse-protection.service";
       inject: [CorrelationService],
     },
   ],
-  exports: [CorrelationService, StructuredLogger, IdempotencyService, AbuseProtectionService],
+  exports: [CorrelationService, StructuredLogger, IdempotencyService, AbuseProtectionService, CacheService],
 })
 export class CommonModule {
   configure(consumer: MiddlewareConsumer) {

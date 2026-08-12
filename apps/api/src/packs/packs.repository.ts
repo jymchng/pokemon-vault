@@ -87,17 +87,25 @@ export class PacksRepository {
     packId: string;
     cardIds: string[];
   }): Promise<PackOpeningDto> {
-    const row = await this.prisma.packOpening.create({
-      data: {
-        idempotencyKey: data.idempotencyKey,
-        userId: data.userId,
-        packId: data.packId,
-        randomizationVersion: RANDOMIZATION_VERSION,
-        cards: {
-          create: data.cardIds.map((cardId) => ({ cardId })),
+    // §93: atomic pack opening — opening + cards are created in ONE
+    // transaction so a partial failure can never leave a pack consumed
+    // without its cards (or vice versa).
+    const row = await this.prisma.$transaction(async (tx) => {
+      const opening = await tx.packOpening.create({
+        data: {
+          idempotencyKey: data.idempotencyKey,
+          userId: data.userId,
+          packId: data.packId,
+          randomizationVersion: RANDOMIZATION_VERSION,
         },
-      },
-      include: { pack: { select: { name: true } }, cards: { include: { card: true } } },
+      });
+      await tx.packCard.createMany({
+        data: data.cardIds.map((cardId) => ({ openingId: opening.id, cardId })),
+      });
+      return tx.packOpening.findUniqueOrThrow({
+        where: { id: opening.id },
+        include: { pack: { select: { name: true } }, cards: { include: { card: true } } },
+      });
     });
     return mapOpening(row);
   }

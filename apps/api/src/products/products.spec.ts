@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { NotFoundException } from "@nestjs/common";
 import { ProductsController } from "./products.controller";
+import { CacheService } from "../common/cache.service";
 import { buildCursorPage, decodeCursor } from "../common/cursor-pagination";
 import { ProductsService } from "./products.service";
 import { ProductsRepository } from "./products.repository";
@@ -130,7 +131,7 @@ class FakeProductsRepository {
 async function makeModule(repo: FakeProductsRepository) {
   return Test.createTestingModule({
     controllers: [ProductsController],
-    providers: [ProductsService, { provide: ProductsRepository, useValue: repo }],
+    providers: [ProductsService, { provide: ProductsRepository, useValue: repo }, { provide: CacheService, useValue: { get: async () => null, set: async () => {}, del: async () => {}, delScope: async () => {}, incr: async () => 1 } }],
   })
     .overrideGuard(AuthGuard)
     .useValue(passGuard)

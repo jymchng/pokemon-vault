@@ -15,6 +15,7 @@ import {
 } from "./products.dto";
 import { ProductsRepository } from "./products.repository";
 import { CursorPageMeta } from "../common/cursor-pagination";
+import { CacheService } from "../common/cache.service";
 
 /** Slugify a product name (fallback for omitted slug). */
 export function slugify(name: string): string {
@@ -28,7 +29,10 @@ export function slugify(name: string): string {
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly repo: ProductsRepository) {}
+  constructor(
+    private readonly repo: ProductsRepository,
+    private readonly cache: CacheService,
+  ) {}
 
   /** Public catalog: only ACTIVE, non-deleted products. */
   /** Public catalog — cursor pagination (§86). */
@@ -36,7 +40,11 @@ export class ProductsService {
     items: ProductDto[];
     meta: CursorPageMeta;
   }> {
-    return this.repo.findAllCursor({
+    // §94: hot products cache — TTL 60s; invalidated on product mutations.
+    const cacheKey = `list:${query.category ?? ""}:${query.productType ?? ""}:${query.sort ?? ""}:${query.cursor ?? ""}:${query.limit}`;
+    const cached = await this.cache.get<{ items: ProductDto[]; meta: CursorPageMeta }>("hot-products", cacheKey);
+    if (cached) return cached;
+    const result = await this.repo.findAllCursor({
       category: query.category,
       productType: query.productType,
       search: query.search,
@@ -47,6 +55,13 @@ export class ProductsService {
       cursor: query.cursor,
       limit: query.limit,
     });
+    await this.cache.set("hot-products", cacheKey, result, 60);
+    return result;
+  }
+
+  /** Invalidate the hot-products cache (called on product create/update). */
+  async invalidateProductsCache(): Promise<void> {
+    await this.cache.delScope("hot-products");
   }
 
   /** Staff+ view: includes DRAFT/ARCHIVED products. */
