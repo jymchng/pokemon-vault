@@ -289,6 +289,7 @@ model InventoryItem {
   product   Product            @relation(fields: [productId], references: [id])
   location  InventoryLocation? @relation(fields: [locationId], references: [id])
   movements InventoryMovement[]
+  reservations InventoryReservation[]
 
   @@unique([productId, locationId, status])
   @@index([productId])
@@ -316,6 +317,23 @@ model InventoryMovement {
 
   @@index([itemId])
   @@index([createdAt])
+}
+
+model InventoryReservation {
+  id         String    @id @default(uuid())
+  itemId     String
+  orderId    String?
+  quantity   Int
+  expiresAt  DateTime
+  releasedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  item  InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  order Order?        @relation(fields: [orderId], references: [id])
+
+  @@index([expiresAt])
+  @@index([itemId])
+  @@index([orderId])
 }
 
 // ── Cart / Wishlist ────────────────────────────────────────────────────────
@@ -392,6 +410,7 @@ model Order {
   payment     Payment?
   shipments   Shipment[]
   movements   InventoryMovement[]
+  reservations InventoryReservation[]
 
   @@index([userId])
   @@index([status])
