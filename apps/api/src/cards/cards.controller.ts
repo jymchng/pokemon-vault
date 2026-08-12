@@ -1,13 +1,96 @@
-import { Controller, Get } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { AuthGuard } from "../auth/auth.guard";
+import { RolesGuard } from "../common/roles.guard";
+import { Roles } from "../common/roles.decorator";
+import {
+  CardQuerySchema,
+  CardQueryDto,
+  CreateCardSchema,
+  CreateCardDto,
+  UpdateCardSchema,
+  UpdateCardDto,
+  LinkProductSchema,
+  LinkProductDto,
+} from "./cards.dto";
 import { CardsService } from "./cards.service";
 
+/**
+ * Cards catalog. Public reads; STAFF+ mutations (server-side RBAC).
+ *   GET   /cards                    public (filters: setName/setId/setSlug/rarity/type/language/search + paging)
+ *   GET   /cards/:id                public (includes linked card products w/ sku/price/inventory)
+ *   POST  /cards                    STAFF+
+ *   PATCH /cards/:id                STAFF+
+ *   DELETE /cards/:id               STAFF+ (soft delete)
+ *   POST  /cards/:id/products       STAFF+ (link a card product to this card)
+ *   DELETE /cards/:id/products/:pid STAFF+ (unlink)
+ */
 @Controller("cards")
 export class CardsController {
   constructor(private readonly service: CardsService) {}
 
   @Get()
-  async index() {
-    // Thin controller: delegates to the service (business logic lives there).
-    return { data: await this.service.list() };
+  async index(@Query() query: unknown) {
+    const parsed = CardQuerySchema.parse(query ?? {});
+    return { data: await this.service.list(parsed) };
+  }
+
+  @Get(":id")
+  async show(@Param("id") id: string) {
+    return { data: await this.service.getById(id, true) };
+  }
+
+  @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() body: unknown) {
+    const parsed = CreateCardSchema.parse(body);
+    return { data: await this.service.create(parsed as CreateCardDto) };
+  }
+
+  @Patch(":id")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  async update(@Param("id") id: string, @Body() body: unknown) {
+    const parsed = UpdateCardSchema.parse(body);
+    return { data: await this.service.update(id, parsed as UpdateCardDto) };
+  }
+
+  @Delete(":id")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param("id") id: string) {
+    await this.service.remove(id);
+  }
+
+  @Post(":id/products")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  @HttpCode(HttpStatus.CREATED)
+  async linkProduct(@Param("id") id: string, @Body() body: unknown) {
+    const parsed = LinkProductSchema.parse(body) as LinkProductDto;
+    await this.service.linkProduct(id, parsed.productId);
+    return { data: { linked: true } };
+  }
+
+  @Delete(":id/products/:productId")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unlinkProduct(@Param("id") id: string, @Param("productId") productId: string) {
+    await this.service.unlinkProduct(id, productId);
   }
 }

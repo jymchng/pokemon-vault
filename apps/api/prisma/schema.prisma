@@ -153,6 +153,7 @@ model Card {
   condition   String?
   marketPrice Decimal? @db.Decimal(10, 2)
   population  Int?
+  metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?

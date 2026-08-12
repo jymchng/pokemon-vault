@@ -1,13 +1,77 @@
-import { Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  CardDto,
+  CardListResult,
+  CardQueryDto,
+  CreateCardDto,
+  UpdateCardDto,
+} from "./cards.dto";
 import { CardsRepository } from "./cards.repository";
-import { CardsDto } from "./cards.dto";
 
 @Injectable()
 export class CardsService {
   constructor(private readonly repo: CardsRepository) {}
 
-  /** Business logic belongs here, never in the controller. */
-  async list(): Promise<CardsDto[]> {
-    return this.repo.findAll();
+  async list(query: CardQueryDto): Promise<CardListResult> {
+    return this.repo.findAll({ ...query });
+  }
+
+  async getById(id: string, includeLinked = false): Promise<CardDto> {
+    const card = await this.repo.findById(id, includeLinked);
+    if (!card) throw new NotFoundException("Card not found");
+    return card;
+  }
+
+  async create(input: CreateCardDto): Promise<CardDto> {
+    try {
+      return await this.repo.create(input);
+    } catch (err: any) {
+      if (err?.code === "P2002") throw new ConflictException("Card already exists");
+      if (err?.code === "P2003") throw new BadRequestException("Invalid setId");
+      throw err;
+    }
+  }
+
+  async update(id: string, input: UpdateCardDto): Promise<CardDto> {
+    try {
+      const card = await this.repo.update(id, input);
+      if (!card) throw new NotFoundException("Card not found");
+      return card;
+    } catch (err: any) {
+      if (err?.code === "P2025") throw new NotFoundException("Card not found");
+      if (err?.code === "P2003") throw new BadRequestException("Invalid setId");
+      throw err;
+    }
+  }
+
+  async remove(id: string): Promise<void> {
+    try {
+      await this.repo.softDelete(id);
+    } catch (err: any) {
+      if (err?.code === "P2025") throw new NotFoundException("Card not found");
+      throw err;
+    }
+  }
+
+  /** Link a card product (Product row) to this card; card metadata stays on Card only. */
+  async linkProduct(cardId: string, productId: string): Promise<void> {
+    await this.getById(cardId);
+    try {
+      await this.repo.linkProduct(cardId, productId);
+    } catch (err: any) {
+      if (err?.code === "P2002") throw new ConflictException("Product already linked to card");
+      if (err?.code === "P2003") throw new NotFoundException("Product not found");
+      throw err;
+    }
+  }
+
+  async unlinkProduct(cardId: string, productId: string): Promise<void> {
+    await this.getById(cardId);
+    await this.repo.unlinkProduct(cardId, productId);
   }
 }
