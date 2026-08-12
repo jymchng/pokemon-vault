@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@pokemon-vault/config": "workspace:*",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "bullmq": "^6.1.0",

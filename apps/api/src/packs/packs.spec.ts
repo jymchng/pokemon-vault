@@ -6,6 +6,7 @@ import { MetricsService } from "../observability/metrics.service";
 import { AbuseProtectionService } from "../common/abuse-protection.service";
 import { PacksRepository } from "./packs.repository";
 import { AuthGuard } from "../auth/auth.guard";
+import { FeatureFlagService } from "../config/feature-flag.service";
 
 const passGuard = { canActivate: () => true };
 
@@ -70,7 +71,7 @@ class FakePacksRepository {
 async function makeModule(repo: FakePacksRepository) {
   return Test.createTestingModule({
     controllers: [PacksController],
-    providers: [PacksService, { provide: PacksRepository, useValue: repo }, { provide: AbuseProtectionService, useValue: { checkAndRecord: async () => false } }, { provide: MetricsService, useValue: { recordCheckoutStarted(){}, recordCheckoutCompleted(){}, recordCheckoutFailed(){}, recordPaymentStarted(){}, recordPaymentCompleted(){}, recordPaymentFailed(){}, recordInventoryReservation(){}, recordInventoryReservationFailed(){}, recordOrderCreated(){}, recordOrderCompleted(){}, recordProductsSold(){}, recordPackOpening(){}, recordCardAdded(){}, recordRewardRedeemed(){} } }],
+    providers: [PacksService, { provide: PacksRepository, useValue: repo }, { provide: AbuseProtectionService, useValue: { checkAndRecord: async () => false } }, { provide: FeatureFlagService, useValue: { assertEnabled: () => undefined, isEnabled: () => true } }, { provide: MetricsService, useValue: { recordCheckoutStarted(){}, recordCheckoutCompleted(){}, recordCheckoutFailed(){}, recordPaymentStarted(){}, recordPaymentCompleted(){}, recordPaymentFailed(){}, recordInventoryReservation(){}, recordInventoryReservationFailed(){}, recordOrderCreated(){}, recordOrderCompleted(){}, recordProductsSold(){}, recordPackOpening(){}, recordCardAdded(){}, recordRewardRedeemed(){} } }],
   })
     .overrideGuard(AuthGuard)
     .useValue(passGuard)

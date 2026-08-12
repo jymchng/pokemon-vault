@@ -4,6 +4,7 @@ import { QueueModule } from "./queue/queue.module";
 import { CommonModule } from "./common/common.module";
 import { ObservabilityModule } from "./observability/observability.module";
 import { SecurityModule } from "./security/security.module";
+import { ConfigModule } from "./config/config.module";
 import { EmailModule } from "./email/email.module";
 import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./auth/auth.module";
@@ -27,6 +28,7 @@ import { MediaModule } from "./media/media.module";
 import { AdminModule } from "./admin/admin.module";
 import { AuditModule } from "./audit/audit.module";
 import { PrivacyModule } from "./privacy/privacy.module";
+import { MaintenanceModule } from "./maintenance/maintenance.module";
 
 /**
  * Pokémon Vault — modular monolith API.
@@ -38,6 +40,7 @@ import { PrivacyModule } from "./privacy/privacy.module";
     CommonModule,
     ObservabilityModule,
     SecurityModule,
+    ConfigModule,
     PrismaModule,
     QueueModule,
     EmailModule,
@@ -63,6 +66,7 @@ import { PrivacyModule } from "./privacy/privacy.module";
     AdminModule,
     AuditModule,
     PrivacyModule,
+    MaintenanceModule,
   ],
 })
 export class AppModule {}

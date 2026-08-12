@@ -9,6 +9,7 @@ import { AuthGuard } from "../auth/auth.guard";
 import { CartService } from "../cart/cart.service";
 import { RewardsService } from "../rewards/rewards.service";
 import { EmailService } from "../email/email.service";
+import { FeatureFlagService } from "../config/feature-flag.service";
 
 const passGuard = { canActivate: () => true };
 
@@ -74,6 +75,7 @@ async function makeModule(repo: FakeCheckoutRepository) {
       { provide: CartService, useValue: fakeCartService },
       { provide: RewardsService, useValue: fakeRewardsService },
       { provide: EmailService, useValue: fakeEmail },
+      { provide: FeatureFlagService, useValue: { assertEnabled: () => undefined, isEnabled: () => true } },
     ],
   })
     .overrideGuard(AuthGuard)

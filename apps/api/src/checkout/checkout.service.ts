@@ -11,6 +11,7 @@ import { RewardsService } from "../rewards/rewards.service";
 import { EmailService } from "../email/email.service";
 import { MetricsService } from "../observability/metrics.service";
 import { IdempotencyService } from "../common/idempotency.service";
+import { FeatureFlagService } from "../config/feature-flag.service";
 import { err as AppErrors } from "../common/app-error";
 
 export const RESERVATION_TTL_MS = 15 * 60 * 1000;
@@ -43,6 +44,7 @@ export class CheckoutService {
     private readonly email: EmailService,
     private readonly metrics: MetricsService,
     private readonly idempotency: IdempotencyService,
+    private readonly flags: FeatureFlagService,
   ) {}
 
   /**
@@ -50,6 +52,8 @@ export class CheckoutService {
    * user's cart. Prices are always recomputed server-side.
    */
   async startCheckout(userId: string | null, email: string | null, input: CheckoutDto) {
+    // §107: NEW_CHECKOUT_ENABLED gates the evolving checkout flow at runtime.
+    this.flags.assertEnabled("newCheckoutEnabled");
     let items = input.items;
     if (!items || items.length === 0) {
       if (!userId) throw new BadRequestException("A user cart is required for guest checkout");
@@ -85,6 +89,8 @@ export class CheckoutService {
 
   /** Confirm payment → finalize: commit inventory, create order, award rewards. */
   async pay(orderId: string, userId: string, input: PayDto, idempotencyKey?: string) {
+    // §107: checkout disabled → no payments.
+    this.flags.assertEnabled("newCheckoutEnabled");
     // §91: idempotent payment confirmation — safe client retries never double-pay.
     if (idempotencyKey) {
       const { data } = await this.idempotency.run(

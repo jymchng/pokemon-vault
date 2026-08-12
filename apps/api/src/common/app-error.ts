@@ -45,6 +45,7 @@ export const ERROR_CODES = {
   CONFLICT: "CONFLICT",
   BAD_REQUEST: "BAD_REQUEST",
   TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
+  FEATURE_DISABLED: "FEATURE_DISABLED",
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -99,6 +100,13 @@ export class InventoryError extends AppError {
   }
 }
 
+/** §107: feature-gated endpoint/service disabled at runtime (403). */
+export class FeatureDisabledError extends AppError {
+  constructor(message = "This feature is currently disabled") {
+    super({ message, code: ERROR_CODES.FEATURE_DISABLED, status: HttpStatus.FORBIDDEN });
+  }
+}
+
 // ── Convenience factories with §102 codes ───────────────────────────────────
 export const err = {
   invalidCredentials: (m = "Invalid credentials") =>
@@ -117,4 +125,5 @@ export const err = {
     new ConflictError(m, ERROR_CODES.REWARD_NOT_ELIGIBLE),
   rewardAlreadyRedeemed: (m = "Reward already redeemed") =>
     new ConflictError(m, ERROR_CODES.REWARD_ALREADY_REDEEMED),
+  featureDisabled: (m = "This feature is currently disabled") => new FeatureDisabledError(m),
 };

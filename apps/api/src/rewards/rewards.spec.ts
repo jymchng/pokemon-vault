@@ -4,6 +4,7 @@ import { RewardsController } from "./rewards.controller";
 import { RewardsService } from "./rewards.service";
 import { MetricsService } from "../observability/metrics.service";
 import { IdempotencyService } from "../common/idempotency.service";
+import { FeatureFlagService } from "../config/feature-flag.service";
 import { RewardsRepository } from "./rewards.repository";
 import { AuthGuard } from "../auth/auth.guard";
 import { RolesGuard } from "../common/roles.guard";
@@ -101,7 +102,7 @@ class FakeRewardsRepository {
 async function makeModule(repo: FakeRewardsRepository) {
   return Test.createTestingModule({
     controllers: [RewardsController],
-    providers: [RewardsService, { provide: RewardsRepository, useValue: repo }, { provide: MetricsService, useValue: { recordCheckoutStarted(){}, recordCheckoutCompleted(){}, recordCheckoutFailed(){}, recordPaymentStarted(){}, recordPaymentCompleted(){}, recordPaymentFailed(){}, recordInventoryReservation(){}, recordInventoryReservationFailed(){}, recordOrderCreated(){}, recordOrderCompleted(){}, recordProductsSold(){}, recordPackOpening(){}, recordCardAdded(){}, recordRewardRedeemed(){} } }, { provide: IdempotencyService, useValue: { run: async (_s: string, _k: string, _u: string, _b: unknown, op: () => Promise<any>) => ({ replayed: false, data: await op() }) } }],
+    providers: [RewardsService, { provide: RewardsRepository, useValue: repo }, { provide: MetricsService, useValue: { recordCheckoutStarted(){}, recordCheckoutCompleted(){}, recordCheckoutFailed(){}, recordPaymentStarted(){}, recordPaymentCompleted(){}, recordPaymentFailed(){}, recordInventoryReservation(){}, recordInventoryReservationFailed(){}, recordOrderCreated(){}, recordOrderCompleted(){}, recordProductsSold(){}, recordPackOpening(){}, recordCardAdded(){}, recordRewardRedeemed(){} } }, { provide: IdempotencyService, useValue: { run: async (_s: string, _k: string, _u: string, _b: unknown, op: () => Promise<any>) => ({ replayed: false, data: await op() }) } }, { provide: FeatureFlagService, useValue: { assertEnabled: () => undefined, isEnabled: () => true } }],
   })
     .overrideGuard(AuthGuard)
     .useValue(passGuard)

@@ -836,3 +836,27 @@ model AbuseEvent {
 
   @@index([scope, actorKey, createdAt])
 }
+
+// ── Scheduled jobs (§106): email log + daily analytics aggregate ────────────
+
+model EmailLog {
+  id        String   @id @default(uuid())
+  to        String
+  template  String
+  subject   String?
+  status    String   @default("SENT") // SENT | FAILED
+  provider  String   @default("console")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model DailyAnalytics {
+  day             String   @id // YYYY-MM-DD (UTC)
+  orders          Int      @default(0)
+  packOpenings    Int      @default(0)
+  rewardRedemptions Int    @default(0)
+  revenueCents    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

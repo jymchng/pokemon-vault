@@ -13,6 +13,7 @@ import {
 import { RewardsRepository } from "./rewards.repository";
 import { MetricsService } from "../observability/metrics.service";
 import { IdempotencyService } from "../common/idempotency.service";
+import { FeatureFlagService } from "../config/feature-flag.service";
 import { err as AppErrors } from "../common/app-error";
 
 @Injectable()
@@ -21,6 +22,7 @@ export class RewardsService {
     private readonly repo: RewardsRepository,
     private readonly metrics: MetricsService,
     private readonly idempotency: IdempotencyService,
+    private readonly flags: FeatureFlagService,
   ) {}
 
   // ---- Account / XP ----
@@ -61,6 +63,8 @@ export class RewardsService {
   // ---- Redemption (§42 atomic) ----
 
   async redeem(userId: string, rewardId: string, idempotencyKey?: string) {
+    // §107: REWARDS_ENABLED gates XP redemption at runtime.
+    this.flags.assertEnabled("rewardsEnabled");
     // §91: idempotent redemption — safe client retries never double-redeem.
     if (idempotencyKey) {
       const { data } = await this.idempotency.run(

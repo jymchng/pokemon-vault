@@ -10,6 +10,7 @@ import { OpenPackDto, PackOpeningDto } from "./packs.dto";
 import { PacksRepository, RANDOMIZATION_VERSION } from "./packs.repository";
 import { MetricsService } from "../observability/metrics.service";
 import { AbuseProtectionService } from "../common/abuse-protection.service";
+import { FeatureFlagService } from "../config/feature-flag.service";
 
 /**
  * §34-37 Pack opening:
@@ -27,6 +28,7 @@ export class PacksService {
     private readonly repo: PacksRepository,
     private readonly metrics: MetricsService,
     private readonly abuse: AbuseProtectionService,
+    private readonly flags: FeatureFlagService,
   ) {}
 
   async list() {
@@ -43,6 +45,8 @@ export class PacksService {
    * Open a pack. Server-determined result; secure randomness; idempotent.
    */
   async open(packRef: string, userId: string, input: OpenPackDto): Promise<PackOpeningDto> {
+    // §107: PACK_OPENING_ENABLED gates paid randomization at runtime.
+    this.flags.assertEnabled("packOpeningEnabled");
     // §90: pack-opening abuse — per-user sliding window (extension point).
     const blocked = await this.abuse.checkAndRecord({
       scope: "pack-opening", actorKey: userId, limit: 20, windowSeconds: 300,
