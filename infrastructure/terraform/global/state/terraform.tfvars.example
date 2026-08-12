@@ -1,0 +1,3 @@
+region        = "eu-central-1"
+state_bucket  = "pokemon-vault-tfstate"   # must be globally unique
+lock_table    = "terraform-state-lock"

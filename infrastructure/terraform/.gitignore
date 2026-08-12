@@ -1,0 +1,9 @@
+# Terraform local state / caches — never commit
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+# Real variable values (keep only *.example)
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl

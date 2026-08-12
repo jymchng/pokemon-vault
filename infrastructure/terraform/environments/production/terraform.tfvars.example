@@ -1,0 +1,32 @@
+# Production values — fill and copy to terraform.tfvars (never commit real
+# values; the example below documents every variable).
+region            = "eu-central-1"
+azs               = ["eu-central-1a", "eu-central-1b"]
+vpc_cidr          = "10.40.0.0/16"
+public_subnets    = ["10.40.1.0/24", "10.40.2.0/24"]
+private_subnets   = ["10.40.10.0/24", "10.40.11.0/24"]
+zone_name         = "pokemon-vault.dev"
+api_domain        = "api.pokemon-vault.dev"
+web_domain        = "pokemon-vault.dev"
+web_origin        = "https://pokemon-vault.dev"
+db_name           = "pokemon_vault"
+db_user           = "pv_app"
+db_instance_class = "db.t4g.small"
+redis_node_type   = "cache.t4g.small"
+media_bucket      = "pokemon-vault-media-prod"
+backup_bucket     = "pokemon-vault-backups-prod"
+image_api         = "ghcr.io/jymchng/pokemon-vault/api:<git-sha>"
+image_worker      = "ghcr.io/jymchng/pokemon-vault/worker:<git-sha>"
+api_cpu           = 512
+api_memory        = 1024
+api_desired       = 2
+worker_desired    = 1
+min_capacity      = 2
+max_capacity      = 6
+waf_rate_limit    = 2000
+alerts_email      = "oncall@pokemon-vault.dev"
+
+# App secrets — supplied via TF_VAR_app_secrets JSON from the operator's
+# secret store (never committed): JWT_SECRET, JWT_REFRESH_SECRET,
+# STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, EMAIL_API_KEY, SENTRY_DSN.
+# app_secrets = { "JWT_SECRET" = "...", ... }
