@@ -49,3 +49,6 @@ next-env.d.ts
 
 # build output (workspaces)
 dist/
+
+# playwright artifact (E2E last-run marker)
+**/test-results/
