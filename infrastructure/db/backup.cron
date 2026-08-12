@@ -1,0 +1,30 @@
+# Pokémon Vault — daily encrypted PostgreSQL backup (§70)
+# Install: crontab -e (as root) or copy to /etc/cron.d/pokemon-vault
+# Off-site copy requires the 'aws' CLI with credentials via IAM role/env.
+# The --verify flag restores every backup into a scratch DB before keeping it,
+# so retention only ever holds proven-restorable backups.
+#
+# RPO: ≤24h (daily). RTO: ~15–30 min (restore + readiness). See
+# docs/operations/backups-dr.md for the full procedure.
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+BACKUP_DIR=/var/backups/pokemon-vault
+RETENTION_DAYS=30
+
+# 02:17 UTC daily — dump → encrypt → checksum → prune → off-site S3 → verify
+17 2 * * * root \
+  DATABASE_URL="$(cat /etc/pokemon-vault/db-url)" \
+  GPG_RECIPIENT=ops@pokemon-vault.dev \
+  BACKUP_S3_BUCKET=pokemon-vault-backups \
+  BACKUP_S3_VERSIONING=1 \
+  BACKUP_DIR=${BACKUP_DIR} \
+  RETENTION_DAYS=${RETENTION_DAYS} \
+  /opt/pokemon-vault/infrastructure/db/backup.sh --verify \
+  >> /var/log/pokemon-vault-backup.log 2>&1
+
+# Weekly long-term retention (immutable): copy the Monday backup to a
+# versioned prefix kept 12 months.
+# 17 3 * * 1 root \
+#   aws s3 cp s3://pokemon-vault-backups/backups/ s3://pokemon-vault-backups/backups-monthly/ \
+#     --recursive --exclude '*' --include "pokemon_vault_daily_$(date -u +%Y%m%d)*.enc"
