@@ -1,5 +1,5 @@
-import { z } from "zod";
+import { CreateUserSchema } from "./users.dto";
 
-export const UsersSchema = z.object({
-  id: z.string().optional(),
-});
+export const CreateUserPayloadSchema = CreateUserSchema;
+
+export const UserQuerySchema = CreateUserSchema.pick({ email: true }).partial();
