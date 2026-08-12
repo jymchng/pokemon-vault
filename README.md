@@ -74,3 +74,19 @@ disaster recovery, API reference, and operations runbooks.
 
 See `docs/operations.md` for the full production-readiness checklist (authentication,
 ecommerce, collection, rewards, security, DevOps).
+
+## Documentation
+
+- **[Architecture](docs/architecture.md)** — modules, data ownership, transactions, queues, caching, auth, deployment, observability
+- **[Local development](docs/local-development.md)** — one-command setup, services, DB scripts, tests
+- **[Deployment](docs/deployment.md)** — environments, AWS architecture, CI/CD, migrations, rollback
+- **[Database](docs/database.md)** — schema highlights, conventions, migrations, security, backups
+- **[Security](docs/security.md)** — headers, rate limits, auth, validation, secrets, scanning, abuse controls
+- **[Disaster recovery](docs/disaster-recovery.md)** — scenario index + key RPO/RTO facts
+- **[API](docs/api.md)** — conventions, pagination, filtering, module index, idempotency
+- **[Operations](docs/operations.md)** — runbook index, scheduled jobs, daily operations
+- **[Production-readiness checklist](docs/production-checklist.md)** — the full §112 checklist (all boxes verified)
+
+Deep runbooks live under `docs/operations/` (deploy-safety, backups-dr,
+disaster-recovery, ci-cd, security-scanning, privacy-gdpr),
+`docs/security/` (database, secrets), and `docs/observability/` (alerting).
