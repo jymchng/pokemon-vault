@@ -40,6 +40,9 @@
       "@prisma/engines",
       "esbuild",
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "js-yaml": "5.2.3"
+    }
   }
 }
