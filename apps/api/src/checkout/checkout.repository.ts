@@ -58,11 +58,16 @@ export class CheckoutRepository {
         });
       }
 
-      // 2. Create order (PENDING) + items.
+      // 2. Create order (PENDING) + items. Human-readable order number from a
+      // PostgreSQL sequence (PV-10482, PV-10483, ...); PK stays an internal UUID.
       const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+      const seqRows = await tx.$queryRawUnsafe<Array<{ nextval: string }>>(
+        `SELECT nextval('order_number_seq') AS nextval`,
+      );
+      const orderNumber = `PV-${seqRows[0].nextval}`;
       const order = await tx.order.create({
         data: {
-          orderNumber: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+          orderNumber,
           userId,
           email,
           status: "PENDING",
