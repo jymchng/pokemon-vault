@@ -26,6 +26,7 @@ import { SearchModule } from "./search/search.module";
 import { MediaModule } from "./media/media.module";
 import { AdminModule } from "./admin/admin.module";
 import { AuditModule } from "./audit/audit.module";
+import { PrivacyModule } from "./privacy/privacy.module";
 
 /**
  * Pokémon Vault — modular monolith API.
@@ -61,6 +62,7 @@ import { AuditModule } from "./audit/audit.module";
     MediaModule,
     AdminModule,
     AuditModule,
+    PrivacyModule,
   ],
 })
 export class AppModule {}
