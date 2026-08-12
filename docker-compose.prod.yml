@@ -30,7 +30,7 @@ services:
       retries: 10
 
   api:
-    image: ghcr.io/jymchng/pokemon-vault/api:${IMAGE_TAG:-latest}
+    image: ghcr.io/jymchng/pokemon-vault/api:${IMAGE_TAG}
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
@@ -53,7 +53,7 @@ services:
       retries: 10
 
   worker:
-    image: ghcr.io/jymchng/pokemon-vault/worker:${IMAGE_TAG:-latest}
+    image: ghcr.io/jymchng/pokemon-vault/worker:${IMAGE_TAG}
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
