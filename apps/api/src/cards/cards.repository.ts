@@ -1,6 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { CardDto, CardListResult } from "./cards.dto";
+import { CardDto, CardGradeDto, CardListResult } from "./cards.dto";
+
+const GRADE_SELECT = {
+  id: true,
+  grade: true,
+  gradingCompany: true,
+  certificationNumber: true,
+  cardId: true,
+  createdAt: true,
+} as const;
 
 const CARD_SELECT = {
   id: true,
@@ -21,6 +30,7 @@ const CARD_SELECT = {
   setId: true,
   createdAt: true,
   updatedAt: true,
+  cardGrades: { select: GRADE_SELECT, orderBy: { createdAt: "asc" as const } },
 } as const;
 
 const LINKED_PRODUCT_SELECT = {
@@ -37,12 +47,13 @@ const LINKED_PRODUCT_SELECT = {
 } as const;
 
 function mapCard(row: any): CardDto {
-  const { products, ...rest } = row;
+  const { products, cardGrades, ...rest } = row;
   const card: CardDto = {
     ...rest,
     marketPrice: rest.marketPrice == null ? null : Number(rest.marketPrice),
     metadata: (rest.metadata as Record<string, unknown> | null) ?? null,
   };
+  if (cardGrades) card.grades = cardGrades;
   if (products) {
     // The card product references this card: it carries its own SKU/price/
     // inventory, while grade/condition/language are projected from the Card row
@@ -60,6 +71,8 @@ function mapCard(row: any): CardDto {
         grade: rest.grade ?? null,
         condition: rest.condition ?? null,
         language: rest.language,
+        gradingCompany: cardGrades?.[0]?.gradingCompany ?? null,
+        certificationNumber: cardGrades?.[0]?.certificationNumber ?? null,
       };
     });
   }
@@ -208,6 +221,54 @@ export class CardsRepository {
 
   async softDelete(id: string): Promise<void> {
     await this.prisma.card.update({ where: { id }, data: { deletedAt: new Date() } });
+  }
+
+  // ---- Card grades (§17 Grading) ----
+
+  async findGradesByCardId(cardId: string): Promise<CardGradeDto[]> {
+    return this.prisma.cardGrade.findMany({
+      where: { cardId },
+      select: GRADE_SELECT,
+      orderBy: { createdAt: "asc" },
+    }) as Promise<CardGradeDto[]>;
+  }
+
+  async addGrade(cardId: string, data: {
+    grade: string;
+    gradingCompany?: string | null;
+    certificationNumber?: string | null;
+  }): Promise<CardGradeDto> {
+    const row = await this.prisma.cardGrade.create({
+      data: {
+        cardId,
+        grade: data.grade,
+        gradingCompany: data.gradingCompany ?? null,
+        certificationNumber: data.certificationNumber ?? null,
+      },
+      select: GRADE_SELECT,
+    });
+    return row as CardGradeDto;
+  }
+
+  async updateGrade(gradeId: string, data: {
+    grade?: string;
+    gradingCompany?: string | null;
+    certificationNumber?: string | null;
+  }): Promise<CardGradeDto | null> {
+    const row = await this.prisma.cardGrade.update({
+      where: { id: gradeId },
+      data: {
+        ...(data.grade !== undefined ? { grade: data.grade } : {}),
+        ...(data.gradingCompany !== undefined ? { gradingCompany: data.gradingCompany ?? null } : {}),
+        ...(data.certificationNumber !== undefined ? { certificationNumber: data.certificationNumber ?? null } : {}),
+      },
+      select: GRADE_SELECT,
+    });
+    return row ? (row as CardGradeDto) : null;
+  }
+
+  async removeGrade(gradeId: string): Promise<void> {
+    await this.prisma.cardGrade.delete({ where: { id: gradeId } });
   }
 
   // ---- Product<->Card links (card product references card WITHOUT duplicating metadata) ----

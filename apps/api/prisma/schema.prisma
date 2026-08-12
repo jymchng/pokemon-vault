@@ -173,13 +173,15 @@ model Card {
 
 model CardGrade {
   id                  String  @id @default(uuid())
-  grade               String  @unique // UNGRADED | PSA_10 | PSA_9 | PSA_8 | CGC_10 | CGC_9_5 | BGS_10 | BGS_9_5
+  grade               String  // UNGRADED | PSA_10 | PSA_9 | PSA_8 | CGC_10 | CGC_9_5 | BGS_10 | BGS_9_5
   gradingCompany      String? // PSA | CGC | BGS
   certificationNumber String?
   cardId              String
   createdAt           DateTime @default(now())
 
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, grade])
 }
 
 // ── Products / variants ────────────────────────────────────────────────────

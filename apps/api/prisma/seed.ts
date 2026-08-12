@@ -122,14 +122,27 @@ async function main() {
     const cardRows = [];
     for (const c of CARDS) {
       const set = setBySlug.get({ "Pokémon 151": "sv151", "Obsidian Flames": "obf", "Scarlet & Violet": "sv1", "Paldean Fates": "paf", "Temporal Forces": "twm" }[c.setName] ?? "sv151")!;
-      cardRows.push(await tx.card.create({
+      const card = await tx.card.create({
         data: {
           name: c.name, setName: c.setName, cardNumber: c.cardNumber, rarity: c.rarity,
           type: c.type, grade: c.grade, marketPrice: c.marketPrice, language: "EN",
           imageUrl: "/images/placeholder-card.png",
           setId: set?.id ?? null,
         },
-      }));
+      });
+      // CardGrade record for graded cards (§17): grade + grading company + cert number.
+      if (c.grade && c.grade !== "UNGRADED") {
+        const [company] = c.grade.split("_");
+        await tx.cardGrade.create({
+          data: {
+            cardId: card.id,
+            grade: c.grade,
+            gradingCompany: company === "PSA" || company === "CGC" || company === "BGS" ? company : null,
+            certificationNumber: `${company}${String(10000000 + cardRows.length * 137)}`,
+          },
+        });
+      }
+      cardRows.push(card);
     }
 
     // Products (inventory tracked via InventoryItem)

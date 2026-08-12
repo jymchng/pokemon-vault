@@ -4,6 +4,15 @@ export const CARD_GRADES = [
   "UNGRADED", "PSA_10", "PSA_9", "PSA_8", "CGC_10", "CGC_9_5", "BGS_10", "BGS_9_5",
 ] as const;
 
+export interface CardGradeDto {
+  id: string;
+  grade: string;
+  gradingCompany: string | null;
+  certificationNumber: string | null;
+  cardId: string;
+  createdAt: Date;
+}
+
 export interface CardLinkedProductDto {
   productId: string;
   sku: string;
@@ -11,10 +20,13 @@ export interface CardLinkedProductDto {
   price: number;
   status: string;
   inventoryQuantity: number;
-  // grade/condition/language are projected from the Card row (never stored on Product).
+  // grade/condition/language + grading company/cert are projected from the
+  // Card row / CardGrade records (never stored on Product).
   grade: string | null;
   condition: string | null;
   language: string;
+  gradingCompany: string | null;
+  certificationNumber: string | null;
 }
 
 export interface CardListResult {
@@ -43,6 +55,7 @@ export interface CardDto {
   setId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  grades?: CardGradeDto[];
   linkedProducts?: CardLinkedProductDto[];
 }
 
@@ -85,6 +98,14 @@ export const CardQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+export const CreateCardGradeSchema = z.object({
+  grade: z.enum(CARD_GRADES),
+  gradingCompany: z.string().max(20).optional().nullable(),
+  certificationNumber: z.string().max(64).optional().nullable(),
+});
+
+export const UpdateCardGradeSchema = CreateCardGradeSchema.partial();
+
 export const LinkProductSchema = z.object({
   productId: z.string().uuid(),
 });
@@ -92,4 +113,6 @@ export const LinkProductSchema = z.object({
 export type CreateCardDto = z.infer<typeof CreateCardSchema>;
 export type UpdateCardDto = z.infer<typeof UpdateCardSchema>;
 export type CardQueryDto = z.infer<typeof CardQuerySchema>;
+export type CreateCardGradeDto = z.infer<typeof CreateCardGradeSchema>;
+export type UpdateCardGradeDto = z.infer<typeof UpdateCardGradeSchema>;
 export type LinkProductDto = z.infer<typeof LinkProductSchema>;

@@ -19,8 +19,12 @@ import {
   CardQueryDto,
   CreateCardSchema,
   CreateCardDto,
+  CreateCardGradeSchema,
+  CreateCardGradeDto,
   UpdateCardSchema,
   UpdateCardDto,
+  UpdateCardGradeSchema,
+  UpdateCardGradeDto,
   LinkProductSchema,
   LinkProductDto,
 } from "./cards.dto";
@@ -92,5 +96,37 @@ export class CardsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async unlinkProduct(@Param("id") id: string, @Param("productId") productId: string) {
     await this.service.unlinkProduct(id, productId);
+  }
+
+  // ---- Grading (§17) ----
+
+  @Get(":id/grades")
+  async listGrades(@Param("id") id: string) {
+    return { data: await this.service.listGrades(id) };
+  }
+
+  @Post(":id/grades")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  @HttpCode(HttpStatus.CREATED)
+  async addGrade(@Param("id") id: string, @Body() body: unknown) {
+    const parsed = CreateCardGradeSchema.parse(body);
+    return { data: await this.service.addGrade(id, parsed as CreateCardGradeDto) };
+  }
+
+  @Patch("grades/:gradeId")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  async updateGrade(@Param("gradeId") gradeId: string, @Body() body: unknown) {
+    const parsed = UpdateCardGradeSchema.parse(body);
+    return { data: await this.service.updateGrade(gradeId, parsed as UpdateCardGradeDto) };
+  }
+
+  @Delete("grades/:gradeId")
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles("STAFF")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeGrade(@Param("gradeId") gradeId: string) {
+    await this.service.removeGrade(gradeId);
   }
 }

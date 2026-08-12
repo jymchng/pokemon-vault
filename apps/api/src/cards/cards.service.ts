@@ -6,10 +6,13 @@ import {
 } from "@nestjs/common";
 import {
   CardDto,
+  CardGradeDto,
   CardListResult,
   CardQueryDto,
   CreateCardDto,
+  CreateCardGradeDto,
   UpdateCardDto,
+  UpdateCardGradeDto,
 } from "./cards.dto";
 import { CardsRepository } from "./cards.repository";
 
@@ -73,5 +76,43 @@ export class CardsService {
   async unlinkProduct(cardId: string, productId: string): Promise<void> {
     await this.getById(cardId);
     await this.repo.unlinkProduct(cardId, productId);
+  }
+
+  // ---- Grading (§17) ----
+
+  async listGrades(cardId: string): Promise<CardGradeDto[]> {
+    await this.getById(cardId);
+    return this.repo.findGradesByCardId(cardId);
+  }
+
+  async addGrade(cardId: string, input: CreateCardGradeDto): Promise<CardGradeDto> {
+    await this.getById(cardId);
+    try {
+      return await this.repo.addGrade(cardId, input);
+    } catch (err: any) {
+      if (err?.code === "P2002") throw new ConflictException("This grade already exists on the card");
+      throw err;
+    }
+  }
+
+  async updateGrade(gradeId: string, input: UpdateCardGradeDto): Promise<CardGradeDto> {
+    try {
+      const grade = await this.repo.updateGrade(gradeId, input);
+      if (!grade) throw new NotFoundException("Grade not found");
+      return grade;
+    } catch (err: any) {
+      if (err?.code === "P2025") throw new NotFoundException("Grade not found");
+      if (err?.code === "P2002") throw new ConflictException("This grade already exists on the card");
+      throw err;
+    }
+  }
+
+  async removeGrade(gradeId: string): Promise<void> {
+    try {
+      await this.repo.removeGrade(gradeId);
+    } catch (err: any) {
+      if (err?.code === "P2025") throw new NotFoundException("Grade not found");
+      throw err;
+    }
   }
 }
