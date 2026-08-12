@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  PriceAvailabilityFilterSchema,
+  PRODUCT_SORT_FIELDS,
+  sortSchema,
+} from "../common/filters";
 
 export const PRODUCT_TYPES = [
   "SINGLE_CARD",
@@ -83,15 +88,23 @@ export const CreateProductSchema = z.object({
 export const UpdateProductSchema = CreateProductSchema.partial();
 export const UpdateVariantSchema = ProductVariantSchema.partial();
 
-export const ProductQuerySchema = z.object({
-  category: z.string().max(100).optional(),
-  productType: z.enum(PRODUCT_TYPES).optional(),
-  status: z.enum(PRODUCT_STATUSES).optional(),
-  search: z.string().max(200).optional(),
-  cursor: z.string().min(1).optional(), // §86 cursor pagination
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(24),
-});
+export const ProductQuerySchema = z
+  .object({
+    category: z.string().max(100).optional(),
+    productType: z.enum(PRODUCT_TYPES).optional(),
+    status: z.enum(PRODUCT_STATUSES).optional(),
+    search: z.string().max(200).optional(),
+    cursor: z.string().min(1).optional(), // §86 cursor pagination
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(24),
+    // §87 composable validated filters + whitelisted sort
+    sort: sortSchema(PRODUCT_SORT_FIELDS),
+  })
+  .merge(PriceAvailabilityFilterSchema)
+  .refine((v) => v.minPrice === undefined || v.maxPrice === undefined || v.minPrice <= v.maxPrice, {
+    message: "minPrice must be <= maxPrice",
+    path: ["minPrice"],
+  });
 
 export type CreateProductDto = z.infer<typeof CreateProductSchema>;
 export type UpdateProductDto = z.infer<typeof UpdateProductSchema>;

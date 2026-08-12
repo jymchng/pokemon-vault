@@ -52,7 +52,12 @@ export class CardsController {
   @ApiQuery({ name: "set", required: false })
   @ApiQuery({ name: "rarity", required: false })
   @ApiQuery({ name: "type", required: false })
+  @ApiQuery({ name: "grade", required: false })
   @ApiQuery({ name: "language", required: false })
+  @ApiQuery({ name: "minPrice", required: false, schema: { type: "number", minimum: 0 } })
+  @ApiQuery({ name: "maxPrice", required: false, schema: { type: "number", minimum: 0 } })
+  @ApiQuery({ name: "availability", required: false, enum: ["in_stock", "out_of_stock"] })
+  @ApiQuery({ name: "sort", required: false, enum: ["newest", "name_asc", "number_asc", "price_asc", "price_desc"] })
   @ApiQuery({ name: "search", required: false })
   async index(@Query() query: unknown) {
     const parsed = CardQuerySchema.parse(query ?? {});

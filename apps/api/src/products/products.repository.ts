@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProductDto, ProductListResult, ProductVariantDto } from "./products.dto";
+import { applyPriceAvailability, productOrderBy, ProductSortField } from "../common/filters";
 import {
   buildCursorPage,
   buildCursorQuery,
@@ -127,6 +128,10 @@ export class ProductsRepository {
     category?: string;
     productType?: string;
     search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    availability?: "in_stock" | "out_of_stock";
+    sort?: ProductSortField;
   } & CursorPaginationInput): Promise<{ items: ProductDto[]; meta: CursorPageMeta }> {
     const where: any = { deletedAt: null, status: "ACTIVE" };
     if (opts.category) where.category = opts.category;
@@ -138,11 +143,28 @@ export class ProductsRepository {
         { slug: { contains: opts.search, mode: "insensitive" } },
       ];
     }
+    // §87 price range + availability (composable, validated) + inventory subquery.
+    applyPriceAvailability(where, {
+      minPrice: opts.minPrice,
+      maxPrice: opts.maxPrice,
+      availability: opts.availability,
+    });
+    if (where.available) {
+      const available = where.available;
+      delete where.available;
+      where.inventoryItems = {
+        some: {
+          status: "AVAILABLE",
+          quantity: available.gt ? { gt: available.gt } : { lte: available.equals },
+        },
+      };
+    }
     const { where: cursorWhere, take, orderBy } = buildCursorQuery(opts);
     const rows = await this.prisma.product.findMany({
       where: { ...where, ...cursorWhere },
       select: PRODUCT_SELECT,
-      orderBy: orderBy as any,
+      // Whitelisted sort map — user input never reaches orderBy directly (§87).
+      orderBy: [{ ...productOrderBy(opts.sort) }, { ...(orderBy as any) }],
       take,
     });
     return buildCursorPage(rows.map(mapProduct), opts);

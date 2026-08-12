@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CardDto, CardGradeDto, CardListResult } from "./cards.dto";
+import { applyPriceAvailability, cardOrderBy, CardSortField } from "../common/filters";
 import {
   buildCursorPage,
   buildCursorQuery,
@@ -132,13 +133,19 @@ export class CardsRepository {
     setId?: string | null;
     rarity?: string;
     type?: string;
+    grade?: string;
     language?: string;
     search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    availability?: "in_stock" | "out_of_stock";
+    sort?: CardSortField;
   } & CursorPaginationInput): Promise<{ items: CardDto[]; meta: CursorPageMeta }> {
     const where: any = {};
     if (opts.setId) where.setId = opts.setId;
     if (opts.rarity) where.rarity = opts.rarity;
     if (opts.type) where.type = opts.type;
+    if (opts.grade) where.grade = opts.grade;
     if (opts.language) where.language = opts.language;
     if (opts.search) {
       where.OR = [
@@ -146,11 +153,35 @@ export class CardsRepository {
         { number: { contains: opts.search, mode: "insensitive" } },
       ];
     }
+    // §87 price range + availability (validated) — card price lives in the
+    // linked product's inventory; filter on marketPrice (card) + availability
+    // via the ProductCardLink → Product → InventoryItem relation.
+    applyPriceAvailability(where, {
+      minPrice: opts.minPrice,
+      maxPrice: opts.maxPrice,
+      availability: opts.availability,
+    });
+    if (where.available) {
+      const available = where.available;
+      delete where.available;
+      where.productLinks = {
+        some: {
+          product: {
+            inventoryItems: {
+              some: {
+                status: "AVAILABLE",
+                quantity: available.gt ? { gt: available.gt } : { lte: available.equals },
+              },
+            },
+          },
+        },
+      };
+    }
     const { where: cursorWhere, take, orderBy } = buildCursorQuery(opts);
     const rows = await this.prisma.card.findMany({
       where: { ...where, ...cursorWhere },
       select: CARD_SELECT,
-      orderBy: orderBy as any,
+      orderBy: [{ ...cardOrderBy(opts.sort) }, { ...(orderBy as any) }],
       take,
     });
     return buildCursorPage(rows.map(mapCard), opts);

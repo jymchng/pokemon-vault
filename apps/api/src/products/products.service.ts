@@ -40,6 +40,10 @@ export class ProductsService {
       category: query.category,
       productType: query.productType,
       search: query.search,
+      minPrice: query.minPrice,
+      maxPrice: query.maxPrice,
+      availability: query.availability,
+      sort: query.sort,
       cursor: query.cursor,
       limit: query.limit,
     });

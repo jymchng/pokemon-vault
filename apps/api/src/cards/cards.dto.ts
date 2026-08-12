@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  CARD_SORT_FIELDS,
+  PriceAvailabilityFilterSchema,
+  sortSchema,
+} from "../common/filters";
 
 export const CARD_GRADES = [
   "UNGRADED", "PSA_10", "PSA_9", "PSA_8", "CGC_10", "CGC_9_5", "BGS_10", "BGS_9_5",
@@ -86,18 +91,27 @@ export const CreateCardSchema = z.object({
 
 export const UpdateCardSchema = CreateCardSchema.omit({ grades: true }).partial();
 
-export const CardQuerySchema = z.object({
-  setName: z.string().max(200).optional(),
-  setId: z.string().uuid().optional(),
-  setSlug: z.string().max(200).optional(),
-  rarity: z.string().max(100).optional(),
-  type: z.string().max(50).optional(),
-  language: z.string().length(2).optional(),
-  search: z.string().max(200).optional(),
-  cursor: z.string().min(1).optional(), // §86 cursor pagination
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(24),
-});
+export const CardQuerySchema = z
+  .object({
+    setName: z.string().max(200).optional(),
+    setId: z.string().uuid().optional(),
+    setSlug: z.string().max(200).optional(),
+    rarity: z.string().max(100).optional(),
+    type: z.string().max(50).optional(),
+    grade: z.string().max(20).optional(), // §87 grade filter
+    language: z.string().length(2).optional(),
+    search: z.string().max(200).optional(),
+    cursor: z.string().min(1).optional(), // §86 cursor pagination
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(24),
+    // §87 composable validated filters + whitelisted sort
+    sort: sortSchema(CARD_SORT_FIELDS),
+  })
+  .merge(PriceAvailabilityFilterSchema)
+  .refine((v) => v.minPrice === undefined || v.maxPrice === undefined || v.minPrice <= v.maxPrice, {
+    message: "minPrice must be <= maxPrice",
+    path: ["minPrice"],
+  });
 
 export const CreateCardGradeSchema = z.object({
   grade: z.enum(CARD_GRADES),
