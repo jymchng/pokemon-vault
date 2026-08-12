@@ -10,6 +10,7 @@ import {
 import { hashPassword, verifyPassword } from "../common/password.policy";
 import { EmailService } from "../email/email.service";
 import { AbuseProtectionService } from "../common/abuse-protection.service";
+import { err } from "../common/app-error";
 import { AuthRepository } from "./auth.repository";
 import {
   AuthResult,
@@ -172,9 +173,9 @@ export class AuthService {
       if (blocked) throw new HttpException("Too many login attempts — try again later", HttpStatus.TOO_MANY_REQUESTS);
     }
     const user = await this.repo.findUserByEmailWithPassword(email.toLowerCase());
-    if (!user) throw new UnauthorizedException("Invalid credentials");
+    if (!user) throw err.invalidCredentials();
     const valid = await verifyPassword(user.passwordHash, password);
-    if (!valid) throw new UnauthorizedException("Invalid credentials");
+    if (!valid) throw err.invalidCredentials();
     if (user.status !== "ACTIVE") {
       throw new UnauthorizedException("Account is not active");
     }

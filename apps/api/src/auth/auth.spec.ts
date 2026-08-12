@@ -165,9 +165,9 @@ it("auth: login verifies Argon2id hash, rejects wrong password", async () => {
   await service.register({ email: "a@example.com", password: "Sup3rSecret!" }, META);
   const ok = await service.login("a@example.com", "Sup3rSecret!", META);
   expect(ok.user.email).toBe("a@example.com");
-  await expect(service.login("a@example.com", "wrong-password", META)).rejects.toBeInstanceOf(
-    UnauthorizedException,
-  );
+  await expect(service.login("a@example.com", "wrong-password", META)).rejects.toMatchObject({
+    code: "AUTH_INVALID_CREDENTIALS",
+  });
 });
 
 it("auth: refresh rotates token (old one becomes replayable → theft response)", async () => {

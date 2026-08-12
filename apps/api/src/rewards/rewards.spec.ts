@@ -175,10 +175,10 @@ describe("G21 rewards module", () => {
     const repo = new FakeRewardsRepository();
     const mod = await makeModule(repo);
     const ctrl = mod.get(RewardsController);
-    await expect(ctrl.redeem(req() as any, { rewardId: REWARD_ID } as any)).rejects.toBeInstanceOf(BadRequestException); // insufficient xp (0 < 100)
+    await expect(ctrl.redeem(req() as any, { rewardId: REWARD_ID } as any)).rejects.toMatchObject({ code: "REWARD_NOT_ELIGIBLE" }); // insufficient xp (0 < 100)
     await repo.awardXp("u1", 500, "PURCHASE", "PV-1");
     repo.rewards[0].inventory = 0;
-    await expect(ctrl.redeem(req() as any, { rewardId: REWARD_ID } as any)).rejects.toBeInstanceOf(BadRequestException); // out of stock
+    await expect(ctrl.redeem(req() as any, { rewardId: REWARD_ID } as any)).rejects.toMatchObject({ code: "REWARD_NOT_ELIGIBLE" }); // out of stock
   });
 
   it("staff can create/update rewards and grant XP", async () => {

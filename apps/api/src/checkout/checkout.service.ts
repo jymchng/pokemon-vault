@@ -11,6 +11,7 @@ import { RewardsService } from "../rewards/rewards.service";
 import { EmailService } from "../email/email.service";
 import { MetricsService } from "../observability/metrics.service";
 import { IdempotencyService } from "../common/idempotency.service";
+import { err as AppErrors } from "../common/app-error";
 
 export const RESERVATION_TTL_MS = 15 * 60 * 1000;
 
@@ -54,7 +55,7 @@ export class CheckoutService {
       if (!userId) throw new BadRequestException("A user cart is required for guest checkout");
       const cart = await this.cartService.getCart(userId, null);
       if (cart.items.length === 0) {
-        throw new BadRequestException("Cart is empty");
+        throw AppErrors.cartEmpty();
       }
       items = cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
     }

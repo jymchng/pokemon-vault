@@ -16,6 +16,7 @@ import {
 import { ProductsRepository } from "./products.repository";
 import { CursorPageMeta } from "../common/cursor-pagination";
 import { CacheService } from "../common/cache.service";
+import { err as AppErrors } from "../common/app-error";
 
 /** Slugify a product name (fallback for omitted slug). */
 export function slugify(name: string): string {
@@ -71,7 +72,7 @@ export class ProductsService {
 
   async getBySlugOrId(slugOrId: string, includeDraft = false): Promise<ProductDto> {
     const product = await this.repo.findBySlugOrId(slugOrId, includeDraft);
-    if (!product) throw new NotFoundException("Product not found");
+    if (!product) throw AppErrors.productNotFound();
     return product;
   }
 
@@ -91,7 +92,7 @@ export class ProductsService {
   /** Resolve a product id from either its UUID or slug (draft-aware). */
   private async resolveProductId(slugOrId: string): Promise<string> {
     const product = await this.repo.findBySlugOrId(slugOrId, true);
-    if (!product) throw new NotFoundException("Product not found");
+    if (!product) throw AppErrors.productNotFound();
     return product.id;
   }
 
@@ -99,7 +100,7 @@ export class ProductsService {
     try {
       const id = await this.resolveProductId(slugOrId);
       const product = await this.repo.update(id, input);
-      if (!product) throw new NotFoundException("Product not found");
+      if (!product) throw AppErrors.productNotFound();
       return product;
     } catch (err: any) {
       if (err?.code === "P2025") throw new NotFoundException("Product not found");

@@ -13,6 +13,7 @@ import {
 import { RewardsRepository } from "./rewards.repository";
 import { MetricsService } from "../observability/metrics.service";
 import { IdempotencyService } from "../common/idempotency.service";
+import { err as AppErrors } from "../common/app-error";
 
 @Injectable()
 export class RewardsService {
@@ -86,9 +87,9 @@ export class RewardsService {
           case "REWARD_EXPIRED":
             throw new BadRequestException("Reward has expired");
           case "REWARD_OUT_OF_STOCK":
-            throw new BadRequestException("Reward is out of stock");
+            throw AppErrors.rewardNotEligible();
           case "INSUFFICIENT_XP":
-            throw new BadRequestException("Insufficient XP balance");
+            throw AppErrors.rewardNotEligible();
           case "P2002":
             break;
         }

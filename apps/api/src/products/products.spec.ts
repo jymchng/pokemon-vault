@@ -205,7 +205,7 @@ describe("G9 products module", () => {
     const ctrl = mod.get(ProductsController);
     const found = await ctrl.show("test-card");
     expect(found.data.slug).toBe("test-card");
-    await expect(ctrl.show("nope")).rejects.toBeInstanceOf(NotFoundException);
+    await expect(ctrl.show("nope")).rejects.toMatchObject({ code: "PRODUCT_NOT_FOUND" });
   });
 
   it("soft-deletes a product (removed from listings, keeps row)", async () => {

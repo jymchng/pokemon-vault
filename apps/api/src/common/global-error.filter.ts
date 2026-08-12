@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import { ZodError } from "zod";
+import { AppError } from "./app-error";
 import { StructuredLogger } from "./structured-logger";
 import { captureError } from "../observability/sentry";
 
@@ -58,6 +59,19 @@ export class GlobalErrorFilter implements ExceptionFilter {
             path: i.path.join("."),
             message: i.message,
           })),
+        },
+      });
+    }
+
+    // Centralized AppError → stable machine-readable code (§102).
+    if (exception instanceof AppError) {
+      const status = exception.getStatus();
+      this.logger.warn(`${req.method} ${req.url} -> ${status} (${requestId ?? "?"}) [${exception.code}]`);
+      return res.status(status).json({
+        error: {
+          code: exception.code,
+          message: exception.message,
+          ...(exception.details ? { details: exception.details } : {}),
         },
       });
     }
