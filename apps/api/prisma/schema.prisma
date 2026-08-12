@@ -688,6 +688,7 @@ model Reward {
   id          String   @id @default(uuid())
   name        String
   description String?
+  type        String   @default("OTHER") // DISCOUNT | SLEEVES | PACK | PROMO_CARD | FREE_SHIPPING | OTHER
   xpCost      Int
   inventory   Int      @default(0)
   status      String   @default("ACTIVE") // ACTIVE | DISABLED

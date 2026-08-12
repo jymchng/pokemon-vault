@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Reward" ADD COLUMN     "type" TEXT NOT NULL DEFAULT 'OTHER';
+
