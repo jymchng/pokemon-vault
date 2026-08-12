@@ -2,6 +2,7 @@ import { config as loadEnv } from "dotenv";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import "reflect-metadata";
+import { ZodErrorFilter } from "./common/zod.filter";
 
 /** Walk up from cwd to the pnpm workspace root (where .env lives). */
 function findWorkspaceRoot(start: string): string | null {
@@ -25,6 +26,7 @@ import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new ZodErrorFilter());
   app.setGlobalPrefix("api/v1");
   const port = Number(process.env.API_PORT || process.env.PORT || 3001);
   await app.listen(port);

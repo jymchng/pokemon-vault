@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { StrongPasswordSchema } from "../common/password.policy";
 
 /** User as returned to clients — NEVER includes passwordHash. */
 export interface UserDto {
@@ -18,7 +19,7 @@ export interface UserDto {
 
 export const CreateUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8).max(128),
+  password: StrongPasswordSchema,
   firstName: z.string().max(100).optional(),
   lastName: z.string().max(100).optional(),
   displayName: z.string().max(100).optional(),

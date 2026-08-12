@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
-import * as argon2 from "argon2";
+import { hashPassword } from "../common/password.policy";
 import { UsersService } from "./users.service";
-import { CreateUserDto } from "./users.dto";
+import { CreateUserSchema, CreateUserDto } from "./users.dto";
 
 @Controller("users")
 export class UsersController {
@@ -15,10 +15,12 @@ export class UsersController {
 
   @Post()
   async create(@Body() body: CreateUserDto) {
+    // Validate (email + password strength policy) before doing anything.
+    const parsed = CreateUserSchema.parse(body);
     // Password hashing (Argon2id) happens here at the boundary — the service
     // never sees plaintext beyond what it passes to the repository as a hash.
-    const passwordHash = await argon2.hash(body.password);
-    return { data: await this.service.create(body, passwordHash) };
+    const passwordHash = await hashPassword(parsed.password);
+    return { data: await this.service.create(parsed, passwordHash) };
   }
 
   @Get(":id")

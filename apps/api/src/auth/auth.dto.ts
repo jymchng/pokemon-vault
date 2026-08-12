@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { StrongPasswordSchema } from "../common/password.policy";
 
 export const RegisterSchema = z.object({
   email: z.string().email().max(254),
-  password: z.string().min(8).max(128),
+  password: StrongPasswordSchema,
   firstName: z.string().max(100).optional(),
   lastName: z.string().max(100).optional(),
   displayName: z.string().max(100).optional(),
@@ -24,7 +25,7 @@ export const ForgotPasswordSchema = z.object({
 
 export const ResetPasswordSchema = z.object({
   token: z.string().min(16).max(512),
-  password: z.string().min(8).max(128),
+  password: StrongPasswordSchema,
 });
 
 export const VerifyEmailSchema = TokenSchema;

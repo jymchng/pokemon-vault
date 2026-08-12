@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
-import * as argon2 from "argon2";
+import { hashPassword, verifyPassword } from "../common/password.policy";
 import { AuthRepository } from "./auth.repository";
 import {
   AuthResult,
@@ -118,7 +118,7 @@ export class AuthService {
     if (existing) {
       throw new ConflictException("A user with this email already exists");
     }
-    const passwordHash = await argon2.hash(input.password);
+    const passwordHash = await hashPassword(input.password);
     const created = await this.repo.createUser({
       email: input.email.toLowerCase(),
       passwordHash,
@@ -153,7 +153,7 @@ export class AuthService {
   ): Promise<AuthResult> {
     const user = await this.repo.findUserByEmailWithPassword(email.toLowerCase());
     if (!user) throw new UnauthorizedException("Invalid credentials");
-    const valid = await argon2.verify(user.passwordHash, password);
+    const valid = await verifyPassword(user.passwordHash, password);
     if (!valid) throw new UnauthorizedException("Invalid credentials");
     if (user.status !== "ACTIVE") {
       throw new UnauthorizedException("Account is not active");
@@ -284,7 +284,7 @@ export class AuthService {
     const consumed = await this.repo.consumeOneTimeToken(stored.id);
     if (consumed !== 1) throw new BadRequestException("Token already used");
 
-    const passwordHash = await argon2.hash(newPassword);
+    const passwordHash = await hashPassword(newPassword);
     await this.repo.updatePassword(stored.userId, passwordHash);
     // Security: revoke every session + refresh token after a password change.
     await this.repo.revokeAllSessionsForUser(stored.userId);
