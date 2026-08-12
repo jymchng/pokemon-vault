@@ -1,13 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { SearchRepository } from "./search.repository";
 import { SearchDto } from "./search.dto";
+import { SearchRepository } from "./search.repository";
 
 @Injectable()
 export class SearchService {
   constructor(private readonly repo: SearchRepository) {}
 
-  /** Business logic belongs here, never in the controller. */
-  async list(): Promise<SearchDto[]> {
-    return this.repo.findAll();
+  async search(query: SearchDto) {
+    return this.repo.search(query);
   }
 }
