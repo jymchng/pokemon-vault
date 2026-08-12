@@ -126,13 +126,35 @@ async function main() {
 
   log("info", `Worker ready — consuming: ${QUEUES.join(", ")}`);
 
+  // Graceful shutdown (§64): SIGTERM/SIGINT → stop fetching new jobs, drain
+  // in-flight handlers, then close dead-letter queues, Redis, and the DB.
+  // BullMQ releases the locks of jobs still active at close; the stalled-job
+  // sweep re-queues them (requeue on shutdown). A watchdog force-closes
+  // workers if a handler hangs past the drain budget.
+  const SHUTDOWN_TIMEOUT_MS = 30_000;
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
-    log("info", `Shutting down (${signal})…`);
-    for (const w of workers) await w.close();
-    for (const q of deadLetters.values()) await q.close();
-    await connection.quit();
-    await prisma.$disconnect();
-    process.exit(0);
+    if (shuttingDown) return;
+    shuttingDown = true;
+    log("info", `Shutting down (${signal}) — draining ${workers.length} workers…`);
+    const watchdog = setTimeout(() => {
+      log("error", `Drain exceeded ${SHUTDOWN_TIMEOUT_MS}ms — force-closing workers`);
+      for (const w of workers) void w.close(true).catch(() => undefined);
+    }, SHUTDOWN_TIMEOUT_MS);
+    watchdog.unref();
+    try {
+      for (const w of workers) await w.close(); // waits for active jobs to finish
+      log("info", "Workers drained; closing dead-letter queues");
+      for (const q of deadLetters.values()) await q.close();
+      await connection.quit();
+      await prisma.$disconnect();
+      clearTimeout(watchdog);
+      log("info", "Shutdown complete — exiting");
+      process.exit(0);
+    } catch (err) {
+      log("error", "Error during shutdown", { error: (err as Error).message });
+      process.exit(1);
+    }
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));

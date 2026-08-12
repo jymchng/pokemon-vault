@@ -1,11 +1,14 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Res } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { HealthService } from "./health.service";
 
 /**
- * Liveness/readiness probes are exempt from rate limiting — orchestrators and
- * load balancers ping these far more often than the 60 req/min default, and
- * they carry no sensitive data.
+ * Health endpoints (§63) — exempt from rate limiting (orchestrators ping
+ * these far more than the default ceiling; they carry no sensitive data).
+ *
+ *   GET /api/v1/health        liveness (process up)
+ *   GET /api/v1/health/live   liveness alias
+ *   GET /api/v1/health/ready  readiness (DB + Redis) → 200 ok | 503 degraded
  */
 @Controller("health")
 @SkipThrottle()
@@ -23,7 +26,9 @@ export class HealthController {
   }
 
   @Get("ready")
-  ready() {
-    return this.health.checkReady();
+  async ready(@Res({ passthrough: true }) res: any) {
+    const report = await this.health.checkReady();
+    res.status(report.status === "ok" ? 200 : 503);
+    return report;
   }
 }

@@ -60,5 +60,38 @@ async function bootstrap() {
   const port = Number(process.env.API_PORT || process.env.PORT || 3001);
   await app.listen(port);
   console.log(`Pokémon Vault API listening on :${port} (api/v1)`);
+
+  // Graceful shutdown (§64): SIGTERM/SIGINT → stop accepting new connections,
+  // drain in-flight requests, then run lifecycle hooks (app.close() triggers
+  // onModuleDestroy for PrismaService → $disconnect, QueueService → close
+  // queues + Redis, ThrottlerStorageRedisService → disconnect). A watchdog
+  // force-exits if drain hangs (e.g. a stuck long-polling request).
+  const SHUTDOWN_TIMEOUT_MS = 30_000;
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return; // second signal during drain: ignore (watchdog covers it)
+    shuttingDown = true;
+    console.log(
+      `[shutdown] ${signal} received — stopping accept, draining in-flight…`,
+    );
+    const watchdog = setTimeout(() => {
+      console.error(
+        `[shutdown] drain exceeded ${SHUTDOWN_TIMEOUT_MS}ms — forcing exit`,
+      );
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
+    watchdog.unref();
+    try {
+      await app.close(); // close HTTP server (drain) + DB/Redis/queue lifecycle hooks
+      clearTimeout(watchdog);
+      console.log("[shutdown] clean — connections closed, exiting");
+      process.exit(0);
+    } catch (err) {
+      console.error("[shutdown] error during close", err);
+      process.exit(1);
+    }
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 void bootstrap();
