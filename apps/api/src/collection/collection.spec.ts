@@ -160,3 +160,25 @@ describe("G19 collection module", () => {
     expect(act.data[0].metadata).toEqual({ quantity: 1, source: "MANUAL_ENTRY" });
   });
 });
+
+describe("G43 N+1 avoidance (§96)", () => {
+  it("setProgress uses batched queries (groupBy + IN) — no per-card round trips", async () => {
+    const { CollectionRepository } = await import("./collection.repository");
+    const calls: string[] = [];
+    const prisma: any = {
+      collectionItem: {
+        groupBy: async () => { calls.push("groupBy"); return [{ cardId: "c1" }, { cardId: "c2" }]; },
+      },
+      card: {
+        findMany: async (args: any) => { calls.push("card.findMany"); expect(args.where.id.in.length).toBe(2); return [{ id: "c1", setId: "s1" }, { id: "c2", setId: "s1" }]; },
+      },
+      set: { findMany: async () => { calls.push("set.findMany"); return [{ id: "s1", name: "S1", slug: "s1", series: "x", totalCards: 5 }]; } },
+      collection: { findFirst: async () => ({ id: "col1" }), findUnique: async () => ({ id: "col1" }) },
+    };
+    const repo = new CollectionRepository(prisma);
+    const progress = await (repo as any).setProgress("u1");
+    // exactly 3 queries for the whole computation — no per-card loop
+    expect(calls).toEqual(["groupBy", "card.findMany", "set.findMany"]);
+    expect(progress[0].ownedCards).toBe(2);
+  });
+});
