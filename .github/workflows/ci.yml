@@ -100,7 +100,7 @@ jobs:
           docker build -f infrastructure/docker/web.Dockerfile --target production -t pv-web:test .
       # ── Container scanning: Trivy on the built production images ──
       - name: Trivy image scan (api, worker, web)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: pv-api:test
@@ -133,7 +133,7 @@ jobs:
         run: pnpm audit --prod --audit-level high
       # ── Trivy: filesystem scan (no Docker daemon needed) ──
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
