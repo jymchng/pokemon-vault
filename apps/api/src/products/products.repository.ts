@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProductDto, ProductListResult, ProductVariantDto } from "./products.dto";
+import {
+  buildCursorPage,
+  buildCursorQuery,
+  CursorPageMeta,
+  CursorPaginationInput,
+} from "../common/cursor-pagination";
 
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
 const json = (v: unknown): Record<string, unknown> | null =>
@@ -114,6 +120,32 @@ export class ProductsRepository {
     ]);
 
     return { items: rows.map(mapProduct), total, page: opts.page, limit: opts.limit };
+  }
+
+  /** Cursor-based listing for the high-volume public catalog (§86). */
+  async findAllCursor(opts: {
+    category?: string;
+    productType?: string;
+    search?: string;
+  } & CursorPaginationInput): Promise<{ items: ProductDto[]; meta: CursorPageMeta }> {
+    const where: any = { deletedAt: null, status: "ACTIVE" };
+    if (opts.category) where.category = opts.category;
+    if (opts.productType) where.productType = opts.productType;
+    if (opts.search) {
+      where.OR = [
+        { name: { contains: opts.search, mode: "insensitive" } },
+        { sku: { contains: opts.search, mode: "insensitive" } },
+        { slug: { contains: opts.search, mode: "insensitive" } },
+      ];
+    }
+    const { where: cursorWhere, take, orderBy } = buildCursorQuery(opts);
+    const rows = await this.prisma.product.findMany({
+      where: { ...where, ...cursorWhere },
+      select: PRODUCT_SELECT,
+      orderBy: orderBy as any,
+      take,
+    });
+    return buildCursorPage(rows.map(mapProduct), opts);
   }
 
   async findBySlugOrId(slugOrId: string, includeDraft = false): Promise<ProductDto | null> {

@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
+import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
 import { RolesGuard } from "../common/roles.guard";
 import { Roles } from "../common/roles.decorator";
 import {
@@ -45,6 +46,14 @@ export class CardsController {
   constructor(private readonly service: CardsService) {}
 
   @Get()
+  @ApiOperation({ summary: "List cards (cursor pagination, §86)" })
+  @ApiQuery({ name: "limit", required: false, schema: { type: "integer", default: 24, maximum: 100 } })
+  @ApiQuery({ name: "cursor", required: false, description: "Opaque cursor from meta.nextCursor" })
+  @ApiQuery({ name: "set", required: false })
+  @ApiQuery({ name: "rarity", required: false })
+  @ApiQuery({ name: "type", required: false })
+  @ApiQuery({ name: "language", required: false })
+  @ApiQuery({ name: "search", required: false })
   async index(@Query() query: unknown) {
     const parsed = CardQuerySchema.parse(query ?? {});
     return { data: await this.service.list(parsed) };

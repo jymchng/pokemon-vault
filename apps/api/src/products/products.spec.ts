@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { NotFoundException } from "@nestjs/common";
 import { ProductsController } from "./products.controller";
+import { buildCursorPage, decodeCursor } from "../common/cursor-pagination";
 import { ProductsService } from "./products.service";
 import { ProductsRepository } from "./products.repository";
 import { AuthGuard } from "../auth/auth.guard";
@@ -24,6 +25,21 @@ class FakeProductsRepository {
       items = items.filter((r) => r.name.toLowerCase().includes(q) || r.sku.toLowerCase().includes(q));
     }
     return { items: items.slice(0, opts.limit), total: items.length, page: opts.page, limit: opts.limit };
+  }
+
+  /** Cursor-based public listing (§86) — fake mirrors the real query. */
+  async findAllCursor(opts: any) {
+    let items = this.rows.filter((r) => !r.deletedAt && r.status === "ACTIVE");
+    if (opts.category) items = items.filter((r) => r.category === opts.category);
+    if (opts.productType) items = items.filter((r) => r.productType === opts.productType);
+    if (opts.search) {
+      const q = opts.search.toLowerCase();
+      items = items.filter((r) => r.name.toLowerCase().includes(q) || r.sku.toLowerCase().includes(q));
+    }
+    void buildCursorPage; void decodeCursor;
+    const cursorId = decodeCursor(opts.cursor);
+    if (cursorId) items = items.filter((r) => r.id > cursorId);
+    return buildCursorPage(items, { limit: opts.limit });
   }
 
   async findBySlugOrId(slugOrId: string, includeDraft = false) {
@@ -163,7 +179,7 @@ describe("G9 products module", () => {
     const mod = await makeModule(repo);
     const ctrl = mod.get(ProductsController);
     const res = await ctrl.index({});
-    expect(res.data.total).toBe(1);
+    expect(res.data.items.length).toBe(1);
     expect(res.data.items[0].sku).toBe("CARD-TEST-001");
   });
 
@@ -174,10 +190,10 @@ describe("G9 products module", () => {
     const mod = await makeModule(repo);
     const ctrl = mod.get(ProductsController);
     const graded = await ctrl.index({ productType: "GRADED_CARD" });
-    expect(graded.data.total).toBe(1);
+    expect(graded.data.items.length).toBe(1);
     expect(graded.data.items[0].productType).toBe("GRADED_CARD");
     const packs = await ctrl.index({ category: "Booster Packs" });
-    expect(packs.data.total).toBe(1);
+    expect(packs.data.items.length).toBe(1);
     expect(packs.data.items[0].sku).toBe("PKG-1");
   });
 
@@ -198,7 +214,7 @@ describe("G9 products module", () => {
     const ctrl = mod.get(ProductsController);
     await ctrl.remove("p1");
     const list = await ctrl.index({});
-    expect(list.data.total).toBe(0);
+    expect(list.data.items.length).toBe(0);
     expect(repo.rows.find((r) => r.id === "p1").deletedAt).toBeTruthy();
   });
 

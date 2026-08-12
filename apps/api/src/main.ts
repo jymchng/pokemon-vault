@@ -44,6 +44,34 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalErrorFilter(app.get(CorrelationService)));
   app.setGlobalPrefix("api/v1", { exclude: ["metrics"] });
 
+  // OpenAPI/Swagger (§85): docs at /api/v1/docs. Enabled in dev + staging;
+  // in production it is protected behind an access token (API_DOCS_TOKEN)
+  // or disabled entirely when not configured. The document reflects the
+  // real routes/DTAs via SwaggerPlugin decorators in the controllers.
+  if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.API_DOCS_TOKEN
+  ) {
+    const { SwaggerModule, DocumentBuilder } = await import("@nestjs/swagger");
+    const config = new DocumentBuilder()
+      .setTitle("Pokémon Vault API")
+      .setDescription(
+        "REST API — auth (cookie/bearer), products, cards, sets, inventory, " +
+          "cart, checkout, orders, payments, shipping, collection, packs, " +
+          "rewards, notifications, search, media. Response envelope " +
+          "{ data, meta } (§50); error envelope { error: { code, message, details } } (§102); " +
+          "pagination §86 (cursor for catalog, offset for admin).",
+      )
+      .setVersion("v1")
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup("api/v1/docs", app, document, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+    console.log(`[docs] Swagger UI at /api/v1/docs (${process.env.NODE_ENV})`);
+  }
+
   // Security headers (§53): Helmet default (incl. X-Content-Type-Options:
   // nosniff) + CSP (prod) + HSTS (prod) + Referrer-Policy: same-origin.
   // Express's X-Powered-By is disabled — no server fingerprinting.

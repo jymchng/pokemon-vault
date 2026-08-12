@@ -12,8 +12,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
 import { RolesGuard } from "../common/roles.guard";
 import { Roles } from "../common/roles.decorator";
+import { PRODUCT_TYPES } from "./products.dto";
 import {
   CreateProductSchema,
   CreateProductDto,
@@ -38,11 +40,18 @@ import { ProductsService } from "./products.service";
  *   PATCH  /variants/:id            STAFF+
  *   DELETE /variants/:id            STAFF+
  */
+@ApiTags("products")
 @Controller()
 export class ProductsController {
   constructor(private readonly service: ProductsService) {}
 
   @Get("products")
+  @ApiOperation({ summary: "List products (cursor pagination, §86)" })
+  @ApiQuery({ name: "limit", required: false, schema: { type: "integer", default: 24, maximum: 100 } })
+  @ApiQuery({ name: "cursor", required: false, description: "Opaque cursor from meta.nextCursor" })
+  @ApiQuery({ name: "category", required: false })
+  @ApiQuery({ name: "productType", required: false, enum: PRODUCT_TYPES })
+  @ApiQuery({ name: "search", required: false })
   async index(@Query() query: unknown) {
     const parsed = ProductQuerySchema.parse(query ?? {});
     return { data: await this.service.list(parsed) };
@@ -56,6 +65,10 @@ export class ProductsController {
   @Get("admin/products")
   @UseGuards(AuthGuard, RolesGuard)
   @Roles("STAFF")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "List all products incl. drafts (STAFF+, offset pagination)" })
+  @ApiQuery({ name: "page", required: false, schema: { type: "integer", default: 1 } })
+  @ApiQuery({ name: "limit", required: false, schema: { type: "integer", default: 20, maximum: 100 } })
   async adminIndex(@Query() query: unknown) {
     const parsed = ProductQuerySchema.parse(query ?? {});
     return { data: await this.service.listAdmin(parsed) };

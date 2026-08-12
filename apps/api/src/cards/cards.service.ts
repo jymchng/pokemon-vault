@@ -20,8 +20,20 @@ import { CardsRepository } from "./cards.repository";
 export class CardsService {
   constructor(private readonly repo: CardsRepository) {}
 
-  async list(query: CardQueryDto): Promise<CardListResult> {
-    return this.repo.findAll({ ...query });
+  /** Public card catalog — cursor pagination (§86). */
+  async list(query: CardQueryDto & { cursor?: string }): Promise<{
+    items: CardListResult["items"];
+    meta: import("../common/cursor-pagination").CursorPageMeta;
+  }> {
+    return this.repo.findAllCursor({
+      setId: query.setId,
+      rarity: query.rarity,
+      type: query.type,
+      language: query.language,
+      search: query.search,
+      cursor: query.cursor,
+      limit: query.limit,
+    });
   }
 
   async getById(id: string, includeLinked = false): Promise<CardDto> {

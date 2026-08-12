@@ -14,6 +14,7 @@ import {
   UpdateVariantDto,
 } from "./products.dto";
 import { ProductsRepository } from "./products.repository";
+import { CursorPageMeta } from "../common/cursor-pagination";
 
 /** Slugify a product name (fallback for omitted slug). */
 export function slugify(name: string): string {
@@ -30,8 +31,18 @@ export class ProductsService {
   constructor(private readonly repo: ProductsRepository) {}
 
   /** Public catalog: only ACTIVE, non-deleted products. */
-  async list(query: ProductQueryDto): Promise<ProductListResult> {
-    return this.repo.findAll({ ...query, includeDraft: false });
+  /** Public catalog — cursor pagination (§86). */
+  async list(query: ProductQueryDto & { cursor?: string }): Promise<{
+    items: ProductDto[];
+    meta: CursorPageMeta;
+  }> {
+    return this.repo.findAllCursor({
+      category: query.category,
+      productType: query.productType,
+      search: query.search,
+      cursor: query.cursor,
+      limit: query.limit,
+    });
   }
 
   /** Staff+ view: includes DRAFT/ARCHIVED products. */

@@ -94,8 +94,9 @@ export const CardQuerySchema = z.object({
   type: z.string().max(50).optional(),
   language: z.string().length(2).optional(),
   search: z.string().max(200).optional(),
+  cursor: z.string().min(1).optional(), // §86 cursor pagination
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
+  limit: z.coerce.number().int().positive().max(100).default(24),
 });
 
 export const CreateCardGradeSchema = z.object({

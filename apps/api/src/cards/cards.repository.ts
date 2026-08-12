@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CardDto, CardGradeDto, CardListResult } from "./cards.dto";
+import {
+  buildCursorPage,
+  buildCursorQuery,
+  CursorPageMeta,
+  CursorPaginationInput,
+} from "../common/cursor-pagination";
 
 const GRADE_SELECT = {
   id: true,
@@ -119,6 +125,35 @@ export class CardsRepository {
       this.prisma.card.count({ where }),
     ]);
     return { items: rows.map(mapCard), total, page: opts.page, limit: opts.limit };
+  }
+
+  /** Cursor-based listing for the high-volume card catalog (§86). */
+  async findAllCursor(opts: {
+    setId?: string | null;
+    rarity?: string;
+    type?: string;
+    language?: string;
+    search?: string;
+  } & CursorPaginationInput): Promise<{ items: CardDto[]; meta: CursorPageMeta }> {
+    const where: any = {};
+    if (opts.setId) where.setId = opts.setId;
+    if (opts.rarity) where.rarity = opts.rarity;
+    if (opts.type) where.type = opts.type;
+    if (opts.language) where.language = opts.language;
+    if (opts.search) {
+      where.OR = [
+        { name: { contains: opts.search, mode: "insensitive" } },
+        { number: { contains: opts.search, mode: "insensitive" } },
+      ];
+    }
+    const { where: cursorWhere, take, orderBy } = buildCursorQuery(opts);
+    const rows = await this.prisma.card.findMany({
+      where: { ...where, ...cursorWhere },
+      select: CARD_SELECT,
+      orderBy: orderBy as any,
+      take,
+    });
+    return buildCursorPage(rows.map(mapCard), opts);
   }
 
   async findById(id: string, includeLinked = false): Promise<CardDto | null> {

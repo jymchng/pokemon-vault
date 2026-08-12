@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { NotFoundException } from "@nestjs/common";
 import { CardsController } from "./cards.controller";
+import { buildCursorPage, decodeCursor } from "../common/cursor-pagination";
 import { CardsService } from "./cards.service";
 import { CardsRepository } from "./cards.repository";
 import { AuthGuard } from "../auth/auth.guard";
@@ -26,6 +27,23 @@ class FakeCardsRepository {
       items = items.filter((r) => r.name.toLowerCase().includes(q) || (r.cardNumber ?? "").toLowerCase().includes(q));
     }
     return { items: items.slice(0, opts.limit), total: items.length, page: opts.page, limit: opts.limit };
+  }
+
+  /** Cursor-based listing (§86) — fake mirrors the real query. */
+  async findAllCursor(opts: any) {
+    let items = this.rows.filter((r) => !r.deletedAt);
+    if (opts.setId) items = items.filter((r) => r.setId === opts.setId);
+    if (opts.rarity) items = items.filter((r) => r.rarity === opts.rarity);
+    if (opts.type) items = items.filter((r) => r.type === opts.type);
+    if (opts.language) items = items.filter((r) => r.language === opts.language);
+    if (opts.search) {
+      const q = opts.search.toLowerCase();
+      items = items.filter((r) => r.name.toLowerCase().includes(q) || (r.cardNumber ?? "").toLowerCase().includes(q));
+    }
+    void buildCursorPage; void decodeCursor;
+    const cursorId = decodeCursor(opts.cursor);
+    if (cursorId) items = items.filter((r) => r.id > cursorId);
+    return buildCursorPage(items, { limit: opts.limit });
   }
 
   async findById(id: string, includeLinked = false) {
@@ -192,12 +210,12 @@ describe("G10 cards module", () => {
     const mod = await makeModule(repo);
     const ctrl = mod.get(CardsController);
     const all = await ctrl.index({});
-    expect(all.data.total).toBe(2);
+    expect(all.data.items.length).toBe(2);
     const fire = await ctrl.index({ type: "Fire" });
-    expect(fire.data.total).toBe(1);
+    expect(fire.data.items.length).toBe(1);
     expect(fire.data.items[0].name).toBe("Charizard ex");
     const searched = await ctrl.index({ search: "snorlax" });
-    expect(searched.data.total).toBe(1);
+    expect(searched.data.items.length).toBe(1);
   });
 
   it("gets a card with linked products (sku/price/inventory, no duplicated metadata)", async () => {
