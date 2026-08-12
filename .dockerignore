@@ -1,0 +1,33 @@
+# ============================================================================
+# Docker build context exclusions (root). Keeps images lean and prevents
+# secrets / local state from leaking into images (§56: never in images).
+# ============================================================================
+
+# VCS / tooling
+.git
+.gitignore
+.agenthicc
+skills-lock.json
+
+# Dependencies + build output (rebuilt inside the image)
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+**/coverage
+
+# Env + secrets — never in images
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# Local data / logs / misc
+*.log
+.DS_Store
+.pnpm-store
+.vscode
+.idea
