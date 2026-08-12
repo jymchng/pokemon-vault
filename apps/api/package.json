@@ -17,7 +17,10 @@
     "db:reset": "prisma migrate reset --force --skip-seed",
     "db:rollback": "prisma migrate resolve --rolled-back",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "e2e:setup-db": "bash ../../infrastructure/db/setup-test-db.sh",
+    "e2e": "playwright test --config=playwright.config.ts",
+    "test:contract": "pnpm --filter @pokemon-vault/types typecheck"
   },
   "dependencies": {
     "@nest-lab/throttler-storage-redis": "^1.2.0",
@@ -44,6 +47,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^20",
     "prisma": "^7.9.1",
     "tsx": "^4.23.12",

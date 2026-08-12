@@ -165,7 +165,9 @@ export class AuthService {
     // add per-account rules by using `login:${email}` as the actorKey).
     if (meta.ip) {
       const blocked = await this.abuse.checkAndRecord({
-        scope: "login", actorKey: meta.ip, limit: 10, windowSeconds: 300,
+        scope: "login", actorKey: meta.ip,
+        limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), // E2E raises this
+        windowSeconds: Number(process.env.LOGIN_RATE_WINDOW_SECONDS ?? 300),
       });
       if (blocked) throw new HttpException("Too many login attempts — try again later", HttpStatus.TOO_MANY_REQUESTS);
     }

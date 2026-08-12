@@ -18,7 +18,9 @@
     "db:migrate": "pnpm --filter @pokemon-vault/api db:migrate",
     "db:seed": "pnpm --filter @pokemon-vault/api db:seed",
     "format": "prettier --write \"apps/**/*.{ts,tsx,css,md}\" \"packages/**/*.{ts,md}\" \"*.md\"",
-    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,md}\" \"packages/**/*.{ts,md}\" \"*.md\""
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,md}\" \"packages/**/*.{ts,md}\" \"*.md\"",
+    "test:e2e": "pnpm --filter @pokemon-vault/api e2e",
+    "test:e2e:setup": "pnpm --filter @pokemon-vault/api e2e:setup-db"
   },
   "devDependencies": {
     "@rolldown/binding-linux-x64-gnu": "1.2.3",
