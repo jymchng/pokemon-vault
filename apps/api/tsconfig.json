@@ -1,22 +1,27 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "types": [
-      "node"
+      "node",
+      "vitest/globals"
     ],
-    "noEmit": true,
+    "outDir": "dist",
+    "sourceMap": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "checkJs": false
+    "strictPropertyInitialization": false
   },
   "include": [
+    "src/**/*.ts",
     "prisma/**/*.ts",
-    "src/generated/prisma/**/*.d.ts",
-    "src/generated/prisma/**/*.js"
+    "src/generated/prisma/**/*.d.ts"
   ]
 }

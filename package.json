@@ -20,6 +20,7 @@
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,md}\" \"packages/**/*.{ts,md}\" \"*.md\""
   },
   "devDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "1.2.3",
     "prettier": "^3.9.6",
     "typescript": "^5"
   },
