@@ -39,8 +39,7 @@ export default function OrdersPage() {
             Sign in to view your orders
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Orders are stored server-side — sign in to see your order history
-            and delivery status.
+            Sign in to see your order history and delivery status.
           </p>
           <Button size="lg" onClick={() => setSignInOpen(true)}>
             Sign In / Create Account

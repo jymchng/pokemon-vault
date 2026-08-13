@@ -136,8 +136,7 @@ export default function RewardsPage() {
             Sign in to view your rewards
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Your Collector XP and rewards are stored server-side — sign in to
-            see your level and progress.
+            Sign in to see your level and rewards progress.
           </p>
           <Button size="lg" onClick={() => setSignInOpen(true)}>
             Sign In / Create Account

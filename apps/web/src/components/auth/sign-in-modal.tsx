@@ -56,7 +56,7 @@ export function SignInModal() {
           <DialogDescription>
             {mode === "signin"
               ? "Sign in to manage your orders, collection, and rewards."
-              : "Join the collector community. Your collection and orders are stored server-side."}
+              : "Join the collector community and manage your collection, orders, and rewards."}
           </DialogDescription>
         </DialogHeader>
 

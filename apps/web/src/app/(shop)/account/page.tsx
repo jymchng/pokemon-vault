@@ -43,8 +43,7 @@ export default function AccountPage() {
             Sign in to your account
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Your profile, addresses, and rewards are stored server-side — sign
-            in to manage them.
+            Sign in to manage your profile, addresses, and rewards.
           </p>
           <Button size="lg" onClick={() => setSignInOpen(true)}>
             Sign In / Create Account

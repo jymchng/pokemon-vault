@@ -108,8 +108,8 @@ export function PackOpenStage({
           </button>
           <p className="text-xs text-muted-foreground">
             {signedIn
-              ? `${pack.cardsPerPack} cards per pack — cards are added to your collection server-side`
-              : "Opening a pack requires an account (cards are stored server-side)"}
+              ? `${pack.cardsPerPack} cards per pack — your pulls are saved to your collection`
+              : "Open packs with your account — your pulls are saved to your collection"}
           </p>
           {error && <p className="text-xs text-destructive">{error}</p>}
         </>

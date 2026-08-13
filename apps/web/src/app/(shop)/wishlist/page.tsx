@@ -103,8 +103,7 @@ export default function WishlistPage() {
             Sign in to view your wishlist
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Your wishlist is stored server-side — sign in to see your saved
-            items.
+            Sign in to see your saved items.
           </p>
           <Button size="lg" onClick={() => setSignInOpen(true)}>
             Sign In / Create Account

@@ -236,8 +236,8 @@ export default function CollectionPage() {
             Sign in to view your collection
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Your collection is stored server-side — sign in to see the cards
-            you own, set progress, and collection stats.
+            Sign in to see the cards you own, set progress, and collection
+            stats.
           </p>
           <Button size="lg" onClick={() => setSignInOpen(true)}>
             Sign In / Create Account

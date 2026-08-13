@@ -74,7 +74,7 @@ export default function CheckoutPage() {
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
           {orderNumber ? `Order ${orderNumber} is confirmed. ` : ""}Track it in
-          Orders — XP from your purchase is awarded server-side.
+          Orders — your Collector XP is added automatically.
         </p>
         <div className="mt-2 flex gap-3">
           <Button render={<Link href="/orders" />} nativeButton={false}>
@@ -102,8 +102,7 @@ export default function CheckoutPage() {
           Sign in to check out
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Your order is placed and stored server-side, so you need an account
-          to complete checkout.
+          You'll need an account to complete your purchase.
         </p>
         <Button size="lg" onClick={() => setSignInOpen(true)}>
           Sign In / Create Account
@@ -228,7 +227,7 @@ export default function CheckoutPage() {
                   Payment
                 </h2>
                 <Badge variant="outline">
-                  <Lock className="size-3" /> Test Payment
+                  <Lock className="size-3" /> Secure Payment
                 </Badge>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -262,8 +261,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Test payment — the API uses the test payment provider; no real
-                money is processed.
+                Demo checkout — no real payment is processed.
               </p>
             </section>
           </div>
@@ -332,7 +330,7 @@ export default function CheckoutPage() {
                 : `Place Order · ${formatCurrency(total)}`}
             </Button>
             <p className="text-center text-[11px] text-muted-foreground">
-              Order is created and stored server-side (requires sign-in).
+              You'll earn Collector XP on your purchase.
             </p>
           </section>
         </div>

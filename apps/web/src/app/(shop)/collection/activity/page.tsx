@@ -84,8 +84,7 @@ export default function ActivityPage() {
             Sign in to see your activity
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Your collection activity (pack openings, purchases, rewards) is
-            stored server-side.
+            See your pack openings, purchases, and rewards all in one place.
           </p>
           <Button size="lg" onClick={() => setSignInOpen(true)}>
             Sign In / Create Account

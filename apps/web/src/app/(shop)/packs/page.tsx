@@ -381,7 +381,7 @@ export default function PacksPage() {
             </DialogTitle>
             <DialogDescription>
               {openingPack
-                ? `${openingPack.cardsPerPack} cards per pack — cards are added to your collection server-side`
+                ? `${openingPack.cardsPerPack} cards per pack — your pulls are saved to your collection`
                 : ""}
             </DialogDescription>
           </DialogHeader>
