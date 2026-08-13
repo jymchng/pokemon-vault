@@ -10,10 +10,10 @@ import * as api from "@/lib/api";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useWishlistStore } from "@/lib/store/wishlist-store";
 import { useCollectionStore } from "@/lib/store/collection-store";
-import { useActivityStore } from "@/lib/store/activity-store";
 import { useRewardsStore } from "@/lib/store/rewards-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 
-/* ── Query keys (single source of truth) ─────────────── */
+/* ── Query keys (single source of truth) ──────────────────────────────── */
 
 export const queryKeys = {
   cards: {
@@ -27,19 +27,14 @@ export const queryKeys = {
   packs: {
     all: ["packs"] as const,
     detail: (slug: string) => ["packs", slug] as const,
-    latestPulls: ["packs", "latest-pulls"] as const,
   },
   sets: {
     all: ["sets"] as const,
-  },
-  activity: {
-    all: ["activity"] as const,
-    platform: ["activity", "platform"] as const,
+    detail: (id: string) => ["sets", id] as const,
   },
   rewards: {
     tiers: ["rewards", "tiers"] as const,
-    leaderboard: ["rewards", "leaderboard"] as const,
-    waysToWin: ["rewards", "ways-to-win"] as const,
+    account: ["rewards", "me"] as const,
   },
   shipping: {
     addresses: ["shipping", "addresses"] as const,
@@ -49,9 +44,14 @@ export const queryKeys = {
     all: ["orders"] as const,
     detail: (id: string) => ["orders", id] as const,
   },
+  collection: {
+    items: ["collection", "items"] as const,
+    sets: ["collection", "sets"] as const,
+    activity: ["collection", "activity"] as const,
+  },
 } as const;
 
-/* ── Cards ────────────────────────────────────────────── */
+/* ── Cards ────────────────────────────────────────────────────────────── */
 
 export function useCards() {
   return useQuery({
@@ -68,7 +68,7 @@ export function useCard(id: string) {
   });
 }
 
-/* ── Products ─────────────────────────────────────────── */
+/* ── Products ─────────────────────────────────────────────────────────── */
 
 export function useProducts() {
   return useQuery({
@@ -85,7 +85,7 @@ export function useProduct(id: string) {
   });
 }
 
-/* ── Packs ────────────────────────────────────────────── */
+/* ── Packs ────────────────────────────────────────────────────────────── */
 
 export function usePacks() {
   return useQuery({
@@ -102,14 +102,7 @@ export function usePack(slug: string) {
   });
 }
 
-export function useLatestPulls() {
-  return useQuery({
-    queryKey: queryKeys.packs.latestPulls,
-    queryFn: api.fetchLatestPulls,
-  });
-}
-
-/* ── Sets ─────────────────────────────────────────────── */
+/* ── Sets ─────────────────────────────────────────────────────────────── */
 
 export function useSets() {
   return useQuery({
@@ -118,37 +111,15 @@ export function useSets() {
   });
 }
 
-/* ── Activity ─────────────────────────────────────────── */
-
-export function useActivity() {
+export function useSet(id: string) {
   return useQuery({
-    queryKey: queryKeys.activity.all,
-    queryFn: api.fetchActivity,
+    queryKey: queryKeys.sets.detail(id),
+    queryFn: () => api.fetchSetBySlugOrId(id),
+    enabled: Boolean(id),
   });
 }
 
-export function usePlatformPulls() {
-  return useQuery({
-    queryKey: queryKeys.activity.platform,
-    queryFn: api.fetchPlatformPulls,
-  });
-}
-
-/** Infinite pull feed (reference's long scrollable pull list). */
-export function useInfinitePulls() {
-  return useInfiniteQuery({
-    queryKey: queryKeys.activity.platform,
-    queryFn: ({ pageParam = 0 }) =>
-      api
-        .fetchPlatformPulls()
-        .then((all) => all.slice(pageParam * 5, pageParam * 5 + 5)),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) =>
-      lastPage.length === 5 ? allPages.length : undefined,
-  });
-}
-
-/* ── Rewards / Leaderboard ────────────────────────────── */
+/* ── Rewards ──────────────────────────────────────────────────────────── */
 
 export function useRewardTiers() {
   return useQuery({
@@ -157,37 +128,86 @@ export function useRewardTiers() {
   });
 }
 
-export function useLeaderboard() {
+/** Auth-gated: rewards account (xp/level). */
+export function useRewardAccount() {
+  const signedIn = useAuthStore((s) => s.signedIn);
   return useQuery({
-    queryKey: queryKeys.rewards.leaderboard,
-    queryFn: api.fetchLeaderboard,
+    queryKey: queryKeys.rewards.account,
+    queryFn: api.fetchRewardAccount,
+    enabled: signedIn,
   });
 }
 
-export function useWaysToWin() {
-  return useQuery({
-    queryKey: queryKeys.rewards.waysToWin,
-    queryFn: api.fetchWaysToWin,
-  });
-}
-
-/* ── Shipping ─────────────────────────────────────────── */
+/* ── Shipping (auth-gated) ────────────────────────────────────────────── */
 
 export function useAddresses() {
+  const signedIn = useAuthStore((s) => s.signedIn);
   return useQuery({
     queryKey: queryKeys.shipping.addresses,
     queryFn: api.fetchAddresses,
+    enabled: signedIn,
   });
 }
 
 export function useShipments() {
+  const signedIn = useAuthStore((s) => s.signedIn);
   return useQuery({
     queryKey: queryKeys.shipping.shipments,
     queryFn: api.fetchShipments,
+    enabled: signedIn,
   });
 }
 
-/* ── Mutations (client-state sync + cache invalidation) ─ */
+/* ── Collection (auth-gated) ──────────────────────────────────────────── */
+
+export function useCollectionItems() {
+  const signedIn = useAuthStore((s) => s.signedIn);
+  return useQuery({
+    queryKey: queryKeys.collection.items,
+    queryFn: api.fetchCollectionItems,
+    enabled: signedIn,
+  });
+}
+
+export function useCollectionSets() {
+  const signedIn = useAuthStore((s) => s.signedIn);
+  return useQuery({
+    queryKey: queryKeys.collection.sets,
+    queryFn: api.fetchCollectionSets,
+    enabled: signedIn,
+  });
+}
+
+export function useCollectionActivity() {
+  const signedIn = useAuthStore((s) => s.signedIn);
+  return useQuery({
+    queryKey: queryKeys.collection.activity,
+    queryFn: api.fetchCollectionActivity,
+    enabled: signedIn,
+  });
+}
+
+/* ── Orders (auth-gated) ──────────────────────────────────────────────── */
+
+export function useOrders() {
+  const signedIn = useAuthStore((s) => s.signedIn);
+  return useQuery({
+    queryKey: queryKeys.orders.all,
+    queryFn: api.fetchOrders,
+    enabled: signedIn,
+  });
+}
+
+export function useOrder(id: string) {
+  const signedIn = useAuthStore((s) => s.signedIn);
+  return useQuery({
+    queryKey: queryKeys.orders.detail(id),
+    queryFn: () => api.fetchOrderById(id),
+    enabled: Boolean(id) && signedIn,
+  });
+}
+
+/* ── Mutations (server sync + cache invalidation) ─────────────────────── */
 
 export function useAddToCartMutation() {
   const addItem = useCartStore((s) => s.addItem);
@@ -198,7 +218,7 @@ export function useAddToCartMutation() {
       image: string;
       price: number;
     }) => {
-      addItem(item);
+      await addItem(item);
       return item;
     },
   });
@@ -208,7 +228,7 @@ export function useToggleWishlistMutation() {
   const toggle = useWishlistStore((s) => s.toggle);
   return useMutation({
     mutationFn: async (id: string) => {
-      toggle(id);
+      await toggle(id);
       return id;
     },
   });
@@ -217,54 +237,17 @@ export function useToggleWishlistMutation() {
 export function useOpenPackMutation() {
   const queryClient = useQueryClient();
   const addCards = useCollectionStore((s) => s.addCards);
-  const addEvent = useActivityStore((s) => s.addEvent);
-  const addXp = useRewardsStore((s) => s.addXp);
 
   return useMutation({
-    mutationFn: async (
-      pulls: {
-        id: string;
-        name: string;
-        rarity: string;
-        set: string;
-        image: string;
-      }[],
-    ) => {
-      // Simulate server round-trip for opening a pack
-      await new Promise((r) => setTimeout(r, 400));
-      addCards(pulls);
-      addEvent({
-        id: `evt-${Date.now()}`,
-        type: "opened_pack",
-        title: "Opened Booster Pack",
-        subtitle: pulls.map((p) => p.name).join(", "),
-        image: "/images/placeholder-card.png",
-        date: new Date().toISOString(),
-        xp: 10,
-      });
-      addXp(10);
-      return pulls;
+    mutationFn: async (slug: string) => {
+      // Server-side opening (§34-37): client never sends cards.
+      const opening = await api.openPack(slug);
+      return opening;
     },
-    onSuccess: () => {
-      // Collection/activity are client stores, but invalidate server-mirror caches
-      queryClient.invalidateQueries({ queryKey: queryKeys.activity.all });
+    onSuccess: async () => {
+      // The opening persisted cards to the user's collection server-side.
+      await addCards([]);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.collection.items });
     },
-  });
-}
-
-/* ── Orders ─────────────────────────────────────────────── */
-
-export function useOrders() {
-  return useQuery({
-    queryKey: queryKeys.orders.all,
-    queryFn: api.fetchOrders,
-  });
-}
-
-export function useOrder(id: string) {
-  return useQuery({
-    queryKey: queryKeys.orders.detail(id),
-    queryFn: () => api.fetchOrderById(id),
-    enabled: Boolean(id),
   });
 }

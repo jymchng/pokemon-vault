@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag, ChevronRight, Truck } from "lucide-react";
+import { ShoppingBag, ChevronRight, Truck, LogIn } from "lucide-react";
 import { useOrders } from "@/lib/hooks/queries";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,35 @@ const statusVariant = {
 } as const;
 
 export default function OrdersPage() {
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
   const { data: orders, isLoading } = useOrders();
+
+  if (!signedIn) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Orders"
+          subtitle="Your order history and delivery status."
+        />
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border-strong py-20 text-center">
+          <div className="flex size-16 items-center justify-center rounded-full bg-secondary">
+            <LogIn className="size-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Sign in to view your orders
+          </h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Orders are stored server-side — sign in to see your order history
+            and delivery status.
+          </p>
+          <Button size="lg" onClick={() => setSignInOpen(true)}>
+            Sign In / Create Account
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,7 +86,11 @@ export default function OrdersPage() {
                     {formatDate(order.date)}
                   </span>
                 </div>
-                <Badge variant={statusVariant[order.status]}>
+                <Badge
+                  variant={
+                    statusVariant[order.status as keyof typeof statusVariant]
+                  }
+                >
                   {order.status}
                 </Badge>
               </div>
@@ -124,3 +157,4 @@ export default function OrdersPage() {
     </div>
   );
 }
+

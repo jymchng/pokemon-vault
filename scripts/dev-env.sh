@@ -128,7 +128,6 @@ build_all() {
   (
     cd apps/web \
       && POKE_VAULT_NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}" \
-         POKE_VAULT_NEXT_PUBLIC_MOCK_FALLBACK="${POKE_VAULT_NEXT_PUBLIC_MOCK_FALLBACK:-true}" \
          "${NODE22_BIN}" node_modules/next/dist/bin/next build
   )
   info "build complete"
@@ -147,6 +146,10 @@ start_stack() {
   export NODE_ENV=development
   export POKE_VAULT_DATABASE_URL="$DEV_DB_URL"
   export POKE_VAULT_REDIS_URL="${POKE_VAULT_REDIS_URL:-redis://localhost:6379}"
+  # Dev/E2E: the storefront + API journeys register several users in <60s,
+  # so raise the per-endpoint auth throttle (default 5/60s) for the dev stack.
+  export POKE_VAULT_AUTH_REGISTER_RATE_LIMIT=100
+  export POKE_VAULT_AUTH_LOGIN_RATE_LIMIT=100
   export API_PORT WEB_PORT
 
   require_postgres

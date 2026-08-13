@@ -14,12 +14,11 @@ import { ProductCard } from "@/components/products/product-card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/page-header";
 import { RewardProgress } from "@/components/rewards/reward-progress";
-import { products, getProductById } from "@/lib/data/products";
-import { packs } from "@/lib/data/packs";
-import { sets } from "@/lib/data/sets";
+import { useProducts, useSets } from "@/lib/hooks/queries";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useWishlistStore } from "@/lib/store/wishlist-store";
 import { useRewardsStore } from "@/lib/store/rewards-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils/format";
 
@@ -56,32 +55,52 @@ export default function Home() {
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const xp = useRewardsStore((s) => s.xp);
   const level = useRewardsStore((s) => s.level);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+
+  const { data: products = [] } = useProducts();
+  const { data: sets = [] } = useSets();
 
   const trending = products.filter((p) => p.trending).slice(0, 4);
   const featured = products.filter((p) => p.featured).slice(0, 4);
   const latestSets = sets.slice(0, 4);
+  const firstPack = products.find((p) => p.category === "Booster Pack");
 
-  const handleAddToCart = (id: string) => {
-    const p = getProductById(id);
+  const handleAddToCart = async (id: string) => {
+    const p = products.find((prod) => prod.id === id);
     if (!p || p.availability === "Sold Out") return;
-    addToCart({
-      productId: p.id,
-      name: p.name,
-      image: p.image,
-      price: p.price,
-    });
-    toast.success(`Added ${p.name} to cart`);
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await addToCart({
+        productId: p.id,
+        name: p.name,
+        image: p.image,
+        price: p.price,
+      });
+      toast.success(`Added ${p.name} to cart`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Add to cart failed");
+    }
   };
 
-  const handleWishlist = (id: string) => {
-    toggleWishlist(id);
-    const p = getProductById(id);
-    if (p) {
+  const handleWishlist = async (id: string) => {
+    const p = products.find((prod) => prod.id === id);
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await toggleWishlist(id);
       toast.success(
         wishlistIds.includes(id)
-          ? `Removed ${p.name} from wishlist`
-          : `Added ${p.name} to wishlist`,
+          ? `Removed ${p?.name ?? "item"} from wishlist`
+          : `Added ${p?.name ?? "item"} to wishlist`,
       );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Wishlist update failed");
     }
   };
 
@@ -191,7 +210,10 @@ export default function Home() {
         />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {latestSets.map((set) => {
-            const pct = Math.round((set.collected / set.totalCards) * 100);
+            const pct =
+              set.totalCards > 0
+                ? Math.round((set.collected / set.totalCards) * 100)
+                : 0;
             return (
               <Link
                 key={set.id}
@@ -280,7 +302,9 @@ export default function Home() {
         <p className="text-sm text-muted-foreground">
           Ready to open your first pack?{" "}
           <span className="font-semibold text-foreground">
-            {packs[0].name} packs from {formatCurrency(packs[0].price)}
+            {firstPack
+              ? `${firstPack.name} packs from ${formatCurrency(firstPack.price)}`
+              : "Booster packs are live"}
           </span>
         </p>
         <Button size="lg" render={<Link href="/packs" />} nativeButton={false}>

@@ -1,34 +1,41 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { fetchRewardAccount } from "@/lib/api";
 
-export const REWARD_TIERS = [
-  { xp: 100, label: "5% off coupon" },
-  { xp: 500, label: "Free card sleeves" },
-  { xp: 1000, label: "Free Booster Pack" },
-  { xp: 2500, label: "Exclusive promo card" },
-  { xp: 5000, label: "Limited collector reward" },
-];
-
+/**
+ * Rewards XP/level — backed by the real backend (/rewards/me, requires
+ * sign-in). XP accrues server-side (purchases, pack openings, milestones);
+ * this store mirrors the account for the UI.
+ */
 type RewardsState = {
   xp: number;
   level: number;
-  addXp: (amount: number) => void;
+  loading: boolean;
+  error: string | null;
+  sync: () => Promise<void>;
 };
 
-export const useRewardsStore = create<RewardsState>()(
-  persist(
-    (set) => ({
-      xp: 1680,
-      level: 7,
-      addXp: (amount) =>
-        set((s) => {
-          const xp = s.xp + amount;
-          const level = Math.floor(xp / 500) + 1;
-          return { xp, level };
-        }),
-    }),
-    { name: "pokemon-vault-rewards" },
-  ),
-);
+export const useRewardsStore = create<RewardsState>()((set) => ({
+  xp: 0,
+  level: 1,
+  loading: false,
+  error: null,
+
+  sync: async () => {
+    set({ loading: true, error: null });
+    try {
+      const account = await fetchRewardAccount();
+      set({
+        xp: account.xp ?? 0,
+        level: account.level ?? 1,
+        loading: false,
+      });
+    } catch (err) {
+      set({
+        loading: false,
+        error: err instanceof Error ? err.message : "Failed to load rewards",
+      });
+    }
+  },
+}));

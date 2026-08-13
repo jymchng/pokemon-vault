@@ -31,13 +31,12 @@ RUN pnpm install --frozen-lockfile
 # ── development (compose target: development) ───────────────────────────────
 FROM dependencies AS development
 COPY apps/ apps/
-CMD ["sh", "-c", "pnpm --filter @pokemon-vault/web db:generate && pnpm --filter @pokemon-vault/web dev"]
+CMD ["sh", "-c", "pnpm --filter @pokemon-vault/web dev"]
 
 # ── build ────────────────────────────────────────────────────────────────────
 FROM dependencies AS build
 COPY apps/ apps/
-RUN pnpm --filter @pokemon-vault/web db:generate \
-    && pnpm --filter @pokemon-vault/web build
+RUN pnpm --filter @pokemon-vault/web build
 
 # ── production ───────────────────────────────────────────────────────────────
 FROM node:22-alpine AS production

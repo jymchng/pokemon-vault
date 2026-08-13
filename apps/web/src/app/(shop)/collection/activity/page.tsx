@@ -2,16 +2,17 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Package } from "lucide-react";
-import { getActivityEvents, type PlatformPull } from "@/lib/data/activity";
-import { useActivity, usePlatformPulls } from "@/lib/hooks/queries";
+import { Package, LogIn } from "lucide-react";
+import { useCollectionActivity } from "@/lib/hooks/queries";
 import { ActivityItem } from "@/components/collection/activity-item";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/lib/store/auth-store";
+import type { ActivityEvent } from "@/lib/types";
 
-function groupByDay(events: ReturnType<typeof getActivityEvents>) {
-  const groups: { label: string; items: typeof events }[] = [];
+function groupByDay(events: ActivityEvent[]) {
+  const groups: { label: string; items: ActivityEvent[] }[] = [];
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
@@ -36,47 +37,12 @@ function groupByDay(events: ReturnType<typeof getActivityEvents>) {
   return groups;
 }
 
-function PullRow({ pull }: { pull: PlatformPull }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-colors hover:border-border-strong">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={pull.image}
-        alt=""
-        className="size-12 shrink-0 rounded-lg border border-border object-cover"
-        loading="lazy"
-        decoding="async"
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-sm font-medium text-foreground">
-          {pull.title}
-        </p>
-        <p className="truncate text-xs text-muted-foreground">
-          <span className="text-muted">{pull.condition}</span>
-          {" · "}
-          <span>{pull.packPrice}</span>
-        </p>
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-0.5">
-        <span className="text-sm font-semibold tabular-nums text-foreground">
-          {pull.value.toLocaleString()}
-        </span>
-        <span className="text-[11px] text-muted-foreground">{pull.time}</span>
-      </div>
-    </div>
-  );
-}
-
 export default function ActivityPage() {
-  const [tab, setTab] = useState<"you" | "platform">("you");
-  const { data: activityData } = useActivity();
-  const { data: platformData } = usePlatformPulls();
-  const events = useMemo(
-    () => activityData ?? getActivityEvents(),
-    [activityData],
-  );
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+  const { data: activityData = [], isLoading } = useCollectionActivity();
+  const events = useMemo(() => activityData, [activityData]);
   const groups = useMemo(() => groupByDay(events), [events]);
-  const platformPulls = platformData ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,87 +75,76 @@ export default function ActivityPage() {
         </Link>
       </div>
 
-      {/* Recent pulls */}
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            <h2 className="text-base font-semibold text-foreground">
-              Recent pulls
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Live pulls and pack openings from you and the platform.
-            </p>
+      {!signedIn ? (
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border-strong py-20 text-center">
+          <div className="flex size-16 items-center justify-center rounded-full bg-secondary">
+            <LogIn className="size-8 text-primary" />
           </div>
-          {/* You / Platform sub-tabs */}
-          <div
-            className="flex items-center gap-1 rounded-full border border-border bg-elevated p-0.5"
-            role="tablist"
-            aria-label="Pulls source"
-          >
-            <button
-              onClick={() => setTab("you")}
-              role="tab"
-              aria-selected={tab === "you"}
-              className={cn(
-                "h-7 rounded-full px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-                tab === "you"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              You
-            </button>
-            <button
-              onClick={() => setTab("platform")}
-              role="tab"
-              aria-selected={tab === "platform"}
-              className={cn(
-                "h-7 rounded-full px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-                tab === "platform"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Platform
-            </button>
-          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Sign in to see your activity
+          </h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Your collection activity (pack openings, purchases, rewards) is
+            stored server-side.
+          </p>
+          <Button size="lg" onClick={() => setSignInOpen(true)}>
+            Sign In / Create Account
+          </Button>
         </div>
-
-        {tab === "you" ? (
-          <div className="flex flex-col gap-5">
-            {groups.map((group) => (
-              <div key={group.label} className="flex flex-col gap-2">
-                <p className="text-[11px] font-semibold tracking-widest text-muted uppercase">
-                  {group.label}
-                </p>
-                {group.items.map((ev) => (
-                  <ActivityItem key={ev.id} event={ev} />
-                ))}
-              </div>
-            ))}
+      ) : (
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-0.5">
+              <h2 className="text-base font-semibold text-foreground">
+                Recent activity
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Pack openings, purchases, and rewards from your account.
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {platformPulls.map((pull) => (
-              <PullRow key={pull.id} pull={pull} />
-            ))}
+
+          {isLoading ? (
+            <div className="flex flex-col gap-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skeleton h-16 rounded-xl" />
+              ))}
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border-strong py-14 text-center">
+              <Package className="size-6 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                No activity yet. Open a pack or complete an order to get
+                started.
+              </p>
+              <Button
+                variant="outline"
+                render={<Link href="/packs" />}
+                nativeButton={false}
+              >
+                Open a Pack
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {groups.map((group) => (
+                <div key={group.label} className="flex flex-col gap-2">
+                  <p className="text-[11px] font-semibold tracking-widest text-muted uppercase">
+                    {group.label}
+                  </p>
+                  {group.items.map((ev) => (
+                    <ActivityItem key={ev.id} event={ev} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
+            <Badge variant="outline">Value in USD</Badge>
           </div>
-        )}
-
-        {/* Loading more hint (infinite feed feel) */}
-        <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
-          <Package className="size-3.5 animate-pulse" />
-          <span>Loading more pulls...</span>
-        </div>
-      </section>
-
-      {/* Sample value legend */}
-      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-        <Badge variant="outline">Value in USD</Badge>
-        <span>
-          {tab === "you" ? "Your pull values" : "Platform-wide pull values"}
-        </span>
-      </div>
+        </section>
+      )}
     </div>
   );
 }

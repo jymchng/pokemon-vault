@@ -1,9 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { use, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, ShoppingBag, X, ArrowLeft } from "lucide-react";
-import { cards, getCardById } from "@/lib/data/cards";
+import { Heart, ShoppingBag, X, ArrowLeft, LogIn } from "lucide-react";
+import { useCard, useCards, useCollectionItems } from "@/lib/hooks/queries";
 import { CardArt } from "@/components/cards/card-art";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useWishlistStore } from "@/lib/store/wishlist-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "sonner";
 
 export default function CardDetailPage({
@@ -27,11 +28,21 @@ export default function CardDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const card = getCardById(id);
+  const { data: card } = useCard(id);
+  const { data: allCards = [] } = useCards();
+  const { data: collectionItems = [] } = useCollectionItems();
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+
   const addToCart = useCartStore((s) => s.addItem);
   const wishlistIds = useWishlistStore((s) => s.ids);
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const wishlisted = wishlistIds.includes(id);
+
+  const ownedQty = useMemo(
+    () => collectionItems.find((i) => i.cardId === id)?.quantity ?? 0,
+    [collectionItems, id],
+  );
 
   if (!card) {
     return (
@@ -43,27 +54,43 @@ export default function CardDetailPage({
     );
   }
 
-  const similar = cards
+  const similar = allCards
     .filter((c) => c.set === card.set && c.id !== card.id)
     .slice(0, 4);
 
-  const handleAddToCart = () => {
-    addToCart({
-      productId: card.id,
-      name: card.name,
-      image: card.image,
-      price: card.marketPrice,
-    });
-    toast.success(`Added ${card.name} to cart`);
+  const handleAddToCart = async () => {
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await addToCart({
+        productId: card.id,
+        name: card.name,
+        image: card.image,
+        price: card.marketPrice,
+      });
+      toast.success(`Added ${card.name} to cart`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Add to cart failed");
+    }
   };
 
-  const handleWishlist = () => {
-    toggleWishlist(card.id);
-    toast.success(
-      wishlisted
-        ? `Removed ${card.name} from wishlist`
-        : `Added ${card.name} to wishlist`,
-    );
+  const handleWishlist = async () => {
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await toggleWishlist(card.id);
+      toast.success(
+        wishlisted
+          ? `Removed ${card.name} from wishlist`
+          : `Added ${card.name} to wishlist`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Wishlist update failed");
+    }
   };
 
   return (
@@ -131,7 +158,7 @@ export default function CardDetailPage({
                 QUANTITY
               </dt>
               <dd className="text-sm font-medium text-foreground">
-                {card.quantity}
+                {signedIn ? ownedQty : "—"}
               </dd>
             </div>
             <div className="flex flex-col gap-0.5 rounded-xl border border-border bg-surface p-3">
@@ -151,13 +178,21 @@ export default function CardDetailPage({
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={handleWishlist}>
-              <Heart className={cn("size-4", wishlisted && "fill-current")} />
-              {wishlisted ? "In Wishlist" : "Add to Wishlist"}
-            </Button>
-            <Button variant="ghost" onClick={handleAddToCart}>
-              <ShoppingBag className="size-4" /> Add to Cart
-            </Button>
+            {!signedIn ? (
+              <Button onClick={() => setSignInOpen(true)}>
+                <LogIn className="size-4" /> Sign in to collect
+              </Button>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={handleWishlist}>
+                  <Heart className={cn("size-4", wishlisted && "fill-current")} />
+                  {wishlisted ? "In Wishlist" : "Add to Wishlist"}
+                </Button>
+                <Button variant="ghost" onClick={handleAddToCart}>
+                  <ShoppingBag className="size-4" /> Add to Cart
+                </Button>
+              </>
+            )}
           </div>
 
           {card.population !== undefined && (

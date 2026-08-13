@@ -10,28 +10,18 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { packs, latestPulls, getPackBySlug } from "@/lib/data/packs";
-import { usePack, useLatestPulls } from "@/lib/hooks/queries";
+import { usePack, usePacks } from "@/lib/hooks/queries";
 import { PackOpenStage } from "@/components/packs/pack-open-stage";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PriceTag, ValueDelta } from "@/components/ui/price-tag";
+import { PriceTag } from "@/components/ui/price-tag";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/utils/format";
 import { useCartStore } from "@/lib/store/cart-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "sonner";
-
-const graderVariant = {
-  PSA: "psa",
-  CGC: "cgc",
-  BECKETT: "bgs",
-} as const;
-
-function graderBadge(grader: string) {
-  return graderVariant[grader as keyof typeof graderVariant] ?? "outline";
-}
 
 export default function PackDetailPage({
   params,
@@ -39,14 +29,15 @@ export default function PackDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const { data: packData } = usePack(slug);
-  const { data: pullData } = useLatestPulls();
-  const pack = packData ?? getPackBySlug(slug);
-  const pulls = pullData ?? latestPulls;
+  const { data: pack } = usePack(slug);
+  const { data: allPacks = [] } = usePacks();
+  const packs = allPacks;
   const [quantity, setQuantity] = useState(1);
   const [turbo, setTurbo] = useState(false);
   const [buyback, setBuyback] = useState(false);
   const addToCart = useCartStore((s) => s.addItem);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
 
   if (!pack) {
     return (
@@ -64,19 +55,26 @@ export default function PackDetailPage({
   }
 
   const total = pack.price * quantity;
-  const ev = pack.price * 1.065;
 
-  const handleBuy = () => {
-    addToCart(
-      {
-        productId: pack.slug,
-        name: `${pack.name} Booster Pack`,
-        image: pack.image,
-        price: pack.price,
-      },
-      quantity,
-    );
-    toast.success(`Added ${quantity} × ${pack.name} pack to cart`);
+  const handleBuy = async () => {
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await addToCart(
+        {
+          productId: pack.slug,
+          name: `${pack.name} Booster Pack`,
+          image: pack.image,
+          price: pack.price,
+        },
+        quantity,
+      );
+      toast.success(`Added ${quantity} × ${pack.name} pack to cart`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Add to cart failed");
+    }
   };
 
   return (
@@ -159,14 +157,6 @@ export default function PackDetailPage({
 
           <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-elevated p-3 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">
-                Expected value / pack
-              </span>
-              <span className="font-semibold text-success">
-                {formatCurrency(ev)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">You pay</span>
               <span className="text-sm font-semibold tabular-nums text-foreground">
                 {formatCurrency(total)}
@@ -224,7 +214,7 @@ export default function PackDetailPage({
           What&apos;s Inside?
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {pack.contents.map((item) => (
+          {(pack.contents ?? []).map((item) => (
             <div
               key={item}
               className="flex items-center gap-2 rounded-xl border border-border bg-surface p-3 text-sm text-foreground"
@@ -238,47 +228,6 @@ export default function PackDetailPage({
             Pull rates: {pack.odds.common}% Common · {pack.odds.ultraRare}%
             Ultra Rare
           </div>
-        </div>
-      </section>
-
-      {/* Latest pulls */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-foreground">
-            Latest Pulls
-          </h2>
-          <Link
-            href="/collection/activity"
-            className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            View activity →
-          </Link>
-        </div>
-        <div className="flex flex-col gap-2">
-          {pulls.map((pull) => (
-            <div
-              key={pull.id}
-              className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
-            >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                <Sparkles className="size-4 text-primary" />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {pull.title}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Badge variant={graderBadge(pull.grader)}>
-                    {pull.grader}
-                  </Badge>
-                  <ValueDelta delta={pull.delta} />
-                </div>
-              </div>
-              <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-                {pull.value.toLocaleString()}
-              </span>
-            </div>
-          ))}
         </div>
       </section>
 

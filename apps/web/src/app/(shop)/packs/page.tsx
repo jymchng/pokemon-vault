@@ -8,23 +8,21 @@ import {
   Plus,
   Gift,
   Info,
-  Lock,
   Sparkles,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { latestPulls } from "@/lib/data/packs";
-import { usePacks, useLatestPulls } from "@/lib/hooks/queries";
+import { usePacks } from "@/lib/hooks/queries";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PriceTag, ValueDelta } from "@/components/ui/price-tag";
+import { PriceTag } from "@/components/ui/price-tag";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/format";
 import { useCartStore } from "@/lib/store/cart-store";
-import { usePackInventoryStore } from "@/lib/store/pack-inventory-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { PackOpenStage } from "@/components/packs/pack-open-stage";
 import {
   Dialog,
@@ -36,45 +34,6 @@ import {
 import { toast } from "sonner";
 import type { BoosterPack } from "@/lib/types";
 
-const graderVariant = {
-  PSA: "psa",
-  CGC: "cgc",
-  BECKETT: "bgs",
-} as const;
-
-function graderBadge(grader: string) {
-  return graderVariant[grader as keyof typeof graderVariant] ?? "outline";
-}
-
-function LatestPullsList({ pulls }: { pulls: typeof latestPulls }) {
-  return (
-    <div className="flex flex-col gap-2">
-      {pulls.map((pull) => (
-        <div
-          key={pull.id}
-          className="flex items-center gap-3 rounded-[1rem] border border-border bg-elevated p-3"
-        >
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-lime/10">
-            <Sparkles className="size-4 text-accent-lime" />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <p className="truncate text-sm font-medium text-foreground">
-              {pull.title}
-            </p>
-            <div className="flex items-center gap-2">
-              <Badge variant={graderBadge(pull.grader)}>{pull.grader}</Badge>
-              <ValueDelta delta={pull.delta} />
-            </div>
-          </div>
-          <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-            {pull.value.toLocaleString()}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function PackInfoPanel({
   pack,
   quantity,
@@ -85,23 +44,32 @@ function PackInfoPanel({
   setQuantity: (n: number) => void;
 }) {
   const addToCart = useCartStore((s) => s.addItem);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
   const [turbo, setTurbo] = useState(false);
   const [buyback, setBuyback] = useState(false);
 
   const total = pack.price * quantity;
-  const ev = pack.price * 1.065; // mock expected value
 
-  const handleBuy = () => {
-    addToCart(
-      {
-        productId: pack.slug,
-        name: `${pack.name} Booster Pack`,
-        image: pack.image,
-        price: pack.price,
-      },
-      quantity,
-    );
-    toast.success(`Added ${quantity} × ${pack.name} pack to cart`);
+  const handleBuy = async () => {
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await addToCart(
+        {
+          productId: pack.slug,
+          name: `${pack.name} Booster Pack`,
+          image: pack.image,
+          price: pack.price,
+        },
+        quantity,
+      );
+      toast.success(`Added ${quantity} × ${pack.name} pack to cart`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Add to cart failed");
+    }
   };
 
   return (
@@ -167,12 +135,6 @@ function PackInfoPanel({
       {/* Totals */}
       <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-elevated p-3 text-xs">
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Expected value / pack</span>
-          <span className="font-semibold text-success">
-            {formatCurrency(ev)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
           <span className="text-muted-foreground">You pay</span>
           <span className="text-sm font-semibold tabular-nums text-foreground">
             {formatCurrency(total)}
@@ -225,7 +187,6 @@ function PackInfoPanel({
 
 export default function PacksPage() {
   const { data: allPacks, isLoading } = usePacks();
-  const { data: pulls } = useLatestPulls();
   const packs = useMemo(() => allPacks ?? [], [allPacks]);
   const [activeSlug, setActiveSlug] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -236,11 +197,6 @@ export default function PacksPage() {
     [activeSlug, packs],
   );
   const [openingPack, setOpeningPack] = useState<BoosterPack | null>(null);
-  const inventoryPacks = usePackInventoryStore((s) => s.packs);
-  const ownedCount =
-    activePack === undefined
-      ? 0
-      : (inventoryPacks.find((p) => p.slug === activePack.slug)?.quantity ?? 0);
 
   const activeIndex = packs.findIndex((p) => p.slug === activePack?.slug);
   const selectRelative = (dir: -1 | 1) => {
@@ -340,33 +296,9 @@ export default function PacksPage() {
             {formatCurrency(activePack.price)}
           </p>
 
-          {/* Ownership-gated open */}
-          <div className="flex flex-col items-center gap-1.5">
-            <Button
-              size="sm"
-              onClick={() => setOpeningPack(activePack)}
-              disabled={ownedCount <= 0}
-            >
-              {ownedCount > 0 ? (
-                <>
-                  <Package /> Open Pack ({ownedCount})
-                </>
-              ) : (
-                <>
-                  <Lock /> No Packs Owned
-                </>
-              )}
-            </Button>
-            {ownedCount > 0 ? (
-              <p className="text-[11px] text-muted-foreground">
-                {ownedCount} pack{ownedCount === 1 ? "" : "s"} ready to open
-              </p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground">
-                Buy this pack to unlock opening
-              </p>
-            )}
-          </div>
+          <Button size="sm" onClick={() => setOpeningPack(activePack)}>
+            <Package /> Open Pack
+          </Button>
         </div>
 
         {/* Pack info panel */}
@@ -383,7 +315,7 @@ export default function PacksPage() {
           What&apos;s Inside?
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {activePack.contents.map((item) => (
+          {(activePack.contents ?? []).map((item) => (
             <div
               key={item}
               className="flex items-center gap-2 rounded-xl border border-border bg-surface p-3 text-sm text-foreground"
@@ -398,22 +330,6 @@ export default function PacksPage() {
             {activePack.odds.ultraRare}% Ultra Rare
           </div>
         </div>
-      </section>
-
-      {/* Latest pulls */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-foreground">
-            Latest Pulls
-          </h2>
-          <Link
-            href="/collection/activity"
-            className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            View activity →
-          </Link>
-        </div>
-        <LatestPullsList pulls={pulls ?? []} />
       </section>
 
       {/* Guaranteed authenticity */}
@@ -450,7 +366,7 @@ export default function PacksPage() {
         </Button>
       </section>
 
-      {/* Open pack dialog (ownership-gated) */}
+      {/* Open pack dialog */}
       <Dialog
         open={openingPack !== null}
         onOpenChange={(open) => {
@@ -465,7 +381,7 @@ export default function PacksPage() {
             </DialogTitle>
             <DialogDescription>
               {openingPack
-                ? `${openingPack.cardsPerPack} cards per pack — opening consumes 1 owned pack`
+                ? `${openingPack.cardsPerPack} cards per pack — cards are added to your collection server-side`
                 : ""}
             </DialogDescription>
           </DialogHeader>

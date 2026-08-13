@@ -2,28 +2,28 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Lock, ShoppingBag, CreditCard, CheckCircle2 } from "lucide-react";
+import { Lock, ShoppingBag, CreditCard, CheckCircle2, LogIn } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/lib/store/cart-store";
-import { useRewardsStore } from "@/lib/store/rewards-store";
-import { useActivityStore } from "@/lib/store/activity-store";
-import { usePackInventoryStore } from "@/lib/store/pack-inventory-store";
-import { packs as catalogPacks } from "@/lib/data/packs";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { startCheckout, payOrder } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils/format";
 import { toast } from "sonner";
 
 export default function CheckoutPage() {
-  const addPacksToInventory = usePackInventoryStore((s) => s.addPacks);
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
-  const addXp = useRewardsStore((s) => s.addXp);
-  const addEvent = useActivityStore((s) => s.addEvent);
+  const syncCart = useCartStore((s) => s.sync);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
 
   const [contact, setContact] = useState("");
   const [address, setAddress] = useState("");
@@ -39,38 +39,28 @@ export default function CheckoutPage() {
     delivery === "express" ? 12.99 : delivery === "priority" ? 7.99 : 0;
   const total = subtotal + shippingCost;
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     setPlacing(true);
-    setTimeout(() => {
-      setPlacing(false);
+    try {
+      // Real backend flow (§26-28): validate cart → create order (PENDING) →
+      // mock payment finalizes reservations → CONFIRMED. Order persisted in
+      // Postgres; never a client-side simulation.
+      const { order } = await startCheckout({
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        email: contact || undefined,
+      });
+      const orderId = String((order as { id?: string }).id ?? "");
+      const paid = await payOrder(orderId, "card");
+      setOrderNumber(String((paid as { orderNumber?: string }).orderNumber ?? (order as { orderNumber?: string }).orderNumber ?? ""));
+      await clearCart().catch(() => undefined);
       setPlaced(true);
-      addXp(Math.round(subtotal));
-      addEvent({
-        id: `ord-${Date.now()}`,
-        type: "purchased",
-        title: `Order placed — ${items.length} item${items.length === 1 ? "" : "s"}`,
-        subtitle: items
-          .map((i) => i.name)
-          .join(", ")
-          .slice(0, 60),
-        image: "/images/placeholder-card.png",
-        date: new Date().toISOString(),
-        xp: Math.round(subtotal),
-      });
-      // Purchased booster packs become unopened packs in the user's
-      // collection inventory (cart productId === pack slug for pack items).
-      const packSlugs = new Set(catalogPacks.map((p) => p.slug));
-      const purchasedPacks = items
-        .filter((i) => packSlugs.has(i.productId))
-        .map((i) => ({ slug: i.productId, quantity: i.quantity }));
-      if (purchasedPacks.length > 0) {
-        addPacksToInventory(purchasedPacks);
-      }
-      clearCart();
-      toast.success("Order placed successfully", {
-        description: `You earned ${Math.round(subtotal)} XP`,
-      });
-    }, 1200);
+      toast.success("Order placed successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Checkout failed");
+      await syncCart().catch(() => undefined);
+    } finally {
+      setPlacing(false);
+    }
   };
 
   if (placed) {
@@ -83,8 +73,8 @@ export default function CheckoutPage() {
           Order Placed!
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Your order is confirmed. Track it in Orders, and check your Rewards
-          for the XP you just earned.
+          {orderNumber ? `Order ${orderNumber} is confirmed. ` : ""}Track it in
+          Orders — XP from your purchase is awarded server-side.
         </p>
         <div className="mt-2 flex gap-3">
           <Button render={<Link href="/orders" />} nativeButton={false}>
@@ -98,6 +88,26 @@ export default function CheckoutPage() {
             Continue Shopping
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  if (!signedIn) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-secondary">
+          <LogIn className="size-8 text-primary" />
+        </div>
+        <h1 className="text-2xl font-semibold text-foreground">
+          Sign in to check out
+        </h1>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Your order is placed and stored server-side, so you need an account
+          to complete checkout.
+        </p>
+        <Button size="lg" onClick={() => setSignInOpen(true)}>
+          Sign In / Create Account
+        </Button>
       </div>
     );
   }
@@ -177,24 +187,9 @@ export default function CheckoutPage() {
                   Delivery Method
                 </span>
                 {[
-                  {
-                    key: "standard",
-                    label: "Standard",
-                    eta: "5-7 days",
-                    cost: 0,
-                  },
-                  {
-                    key: "priority",
-                    label: "Priority",
-                    eta: "2-3 days",
-                    cost: 7.99,
-                  },
-                  {
-                    key: "express",
-                    label: "Express",
-                    eta: "1-2 days",
-                    cost: 12.99,
-                  },
+                  { key: "standard", label: "Standard", eta: "5-7 days", cost: 0 },
+                  { key: "priority", label: "Priority", eta: "2-3 days", cost: 7.99 },
+                  { key: "express", label: "Express", eta: "1-2 days", cost: 12.99 },
                 ].map((d) => (
                   <label
                     key={d.key}
@@ -233,7 +228,7 @@ export default function CheckoutPage() {
                   Payment
                 </h2>
                 <Badge variant="outline">
-                  <Lock className="size-3" /> Mock Payment
+                  <Lock className="size-3" /> Test Payment
                 </Badge>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -267,8 +262,8 @@ export default function CheckoutPage() {
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Demo checkout — no real payment is processed. Use any card
-                format.
+                Test payment — the API uses the test payment provider; no real
+                money is processed.
               </p>
             </section>
           </div>
@@ -337,7 +332,7 @@ export default function CheckoutPage() {
                 : `Place Order · ${formatCurrency(total)}`}
             </Button>
             <p className="text-center text-[11px] text-muted-foreground">
-              By placing this order you earn {Math.round(subtotal)} Collector XP
+              Order is created and stored server-side (requires sign-in).
             </p>
           </section>
         </div>

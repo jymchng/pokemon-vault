@@ -1,73 +1,79 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Storefront E2E journey (G53) — browse → cart → checkout → orders →
+ * Storefront E2E journey (G53) — browse → auth → cart → checkout → orders →
  * collection/packs through the Next.js storefront against the LIVE dev
  * environment (scripts/dev-env.sh up). The web server proxies /api/v1 to the
  * API, so these assertions prove the real backend data flows through the UI.
  *
- * Live-data proof: the seeded backend prices differ from the static mock
- * (e.g. "Mew ex — PSA 10" is $189.99 in the DB vs $122.00 in the mock), so
- * asserting the backend price on the rendered page fails if the mock fallback
- * ever served the data.
+ * Since the storefront now requires sign-in for cart/checkout/orders (all data
+ * is backend-persisted), the journey registers a fresh user, signs in, adds to
+ * cart, completes a REAL checkout (test payment provider), and verifies the
+ * persisted order.
  */
 
 const WEB = process.env.POKE_VAULT_E2E_WEB_URL || "http://localhost:3000";
+const PASSWORD = "Str0ng!Passw0rd";
+let signUpCounter = 0;
+
+async function signUp(page: import("@playwright/test").Page): Promise<string> {
+  const email = `web-e2e-${Date.now()}-${signUpCounter++}@example.com`;
+  await page.goto(`${WEB}/store`);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("tab", { name: "Create Account" }).click();
+  await page.fill("#auth-name", "Web E2E");
+  await page.fill("#auth-email", email);
+  await page.fill("#auth-password", PASSWORD);
+  await page.getByRole("button", { name: "Create Account" }).click();
+  // After signup the modal closes; the account menu shows the user email.
+  await expect(page.getByRole("button", { name: "Account menu" })).toBeVisible({
+    timeout: 20_000,
+  });
+  return email;
+}
 
 async function addMewToCart(page: import("@playwright/test").Page) {
   await page.goto(`${WEB}/store`);
   await page
     .getByRole("button", { name: /Add Mew ex — PSA 10 to cart/ })
     .click();
-  // Cart badge (zustand persist, per-test isolated storage).
+  // Cart badge (backend-persisted, mirrored in the client store).
   await expect(
     page.getByRole("button", { name: "Open cart, 1 items" }),
-  ).toBeVisible();
-}
-
-/** Navigate to checkout; the cart is persisted in localStorage by zustand. */
-async function gotoCheckout(page: import("@playwright/test").Page) {
-  await page.goto(`${WEB}/checkout`);
-  await expect(
-    page.getByRole("heading", { name: "Checkout", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText("Mew ex — PSA 10").first()).toBeVisible();
+  ).toBeVisible({ timeout: 20_000 });
 }
 
 test.describe("storefront journey (G53)", () => {
   test("browse store renders real backend products", async ({ page }) => {
     await page.goto(`${WEB}/store`);
-    // Wait for the product grid populated by /api/v1/products (via proxy).
     const product = page.getByRole("button", {
       name: /Add Mew ex — PSA 10 to cart/,
     });
     await expect(product).toBeVisible({ timeout: 20_000 });
-    // Backend seed price — the static mock uses $122.00.
+    // Backend seed price — the static mock used $122.00.
     await expect(
       page.getByText("$189.99", { exact: true }).first(),
     ).toBeVisible();
   });
 
-  test("add to cart → cart drawer → checkout", async ({ page }) => {
+  test("sign up (real backend auth) then add to cart", async ({ page }) => {
+    await signUp(page);
     await addMewToCart(page);
     await page.getByRole("button", { name: "Open cart, 1 items" }).click();
     await expect(page.getByText("Your Cart")).toBeVisible();
     await expect(page.getByText("Mew ex — PSA 10").first()).toBeVisible();
-    await expect(
-      page.getByText("$189.99", { exact: true }).first(),
-    ).toBeVisible();
-    // Close the drawer, then reach checkout via the persisted cart.
     await page.getByText("Continue Shopping", { exact: true }).click();
-    await gotoCheckout(page);
   });
 
-  test("checkout places an order (client journey, mock payment)", async ({
-    page,
-  }) => {
+  test("checkout places a REAL order (test payment)", async ({ page }) => {
+    const email = await signUp(page);
     await addMewToCart(page);
-    await gotoCheckout(page);
+    await page.goto(`${WEB}/checkout`);
+    await expect(
+      page.getByRole("heading", { name: "Checkout", exact: true }),
+    ).toBeVisible();
 
-    await page.fill("#contact", "trainer@vault.io");
+    await page.fill("#contact", email);
     await page.fill("#address", "12 Pallet Lane");
     await page.fill("#city", "Celadon City");
     await page.fill("#zip", "10001");
@@ -79,13 +85,17 @@ test.describe("storefront journey (G53)", () => {
     await page.getByRole("button", { name: /Place Order/ }).click();
     await expect(
       page.getByRole("heading", { name: "Order Placed!", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: 20_000 });
   });
 
-  test("orders page renders after checkout", async ({ page }) => {
+  test("orders page shows the persisted order", async ({ page }) => {
+    const email = await signUp(page);
     await addMewToCart(page);
-    await gotoCheckout(page);
-    await page.fill("#contact", "trainer@vault.io");
+    await page.goto(`${WEB}/checkout`);
+    await expect(
+      page.getByRole("heading", { name: "Checkout", exact: true }),
+    ).toBeVisible();
+    await page.fill("#contact", email);
     await page.fill("#address", "12 Pallet Lane");
     await page.fill("#city", "Celadon City");
     await page.fill("#zip", "10001");
@@ -95,7 +105,7 @@ test.describe("storefront journey (G53)", () => {
     await page.getByRole("button", { name: /Place Order/ }).click();
     await expect(
       page.getByRole("heading", { name: "Order Placed!", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: 20_000 });
 
     await page.goto(`${WEB}/orders`);
     await expect(
@@ -104,12 +114,12 @@ test.describe("storefront journey (G53)", () => {
     await expect(page.getByText(/Your order history/)).toBeVisible();
   });
 
-  test("collection page renders (backend cards)", async ({ page }) => {
+  test("collection page prompts sign-in for guests", async ({ page }) => {
     await page.goto(`${WEB}/collection`);
     await expect(
       page.getByRole("heading", { name: "Collection", exact: true }),
     ).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/View and manage the Pok/)).toBeVisible();
+    await expect(page.getByText(/Sign in to view your collection/)).toBeVisible();
   });
 
   test("packs page renders seeded packs", async ({ page }) => {

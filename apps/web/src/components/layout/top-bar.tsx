@@ -43,6 +43,7 @@ export function TopBar() {
   );
   const wishlistCount = useWishlistStore((s) => s.ids.length);
   const signedIn = useAuthStore((s) => s.signedIn);
+  const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
   return (
@@ -138,11 +139,14 @@ export function TopBar() {
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="px-2 py-1.5 text-xs">
-                  <span className="block font-semibold text-foreground">
-                    Trainer
+                  <span className="block truncate font-semibold text-foreground">
+                    {user?.displayName ||
+                      [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+                      user?.email ||
+                      "Trainer"}
                   </span>
-                  <span className="text-muted-foreground">
-                    Level 7 Collector
+                  <span className="truncate text-muted-foreground">
+                    {user?.email}
                   </span>
                 </DropdownMenuLabel>
               </DropdownMenuGroup>

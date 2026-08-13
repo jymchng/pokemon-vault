@@ -3,31 +3,25 @@
 import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Filter, SlidersHorizontal, Search, Package } from "lucide-react";
-import { useCards } from "@/lib/hooks/queries";
-import { getCardById } from "@/lib/data/cards";
+import { Filter, SlidersHorizontal, Search, Package, LogIn } from "lucide-react";
+import { useCards, useCollectionItems, useCollectionSets } from "@/lib/hooks/queries";
 import {
-  setFilters,
-  rarityFilters,
-  gradeFilters,
-  typeFilters,
-} from "@/lib/data/sets";
+  SET_FILTERS,
+  RARITY_FILTERS,
+  GRADE_FILTERS,
+  TYPE_FILTERS,
+} from "@/lib/types";
 import { PokemonCardTile } from "@/components/cards/pokemon-card";
-import { CardArt } from "@/components/cards/card-art";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { RewardProgress } from "@/components/rewards/reward-progress";
-import { UnopenedPacksSection } from "@/components/collection/unopened-packs-section";
 import { FilterPills, type FilterPill } from "@/components/ui/filter-pills";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SkeletonGrid } from "@/components/ui/skeleton-card";
-import { formatCurrency, rarityVariant } from "@/lib/utils/format";
+import { formatCurrency } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
-import { useCartStore } from "@/lib/store/cart-store";
-import { useWishlistStore } from "@/lib/store/wishlist-store";
-import { toast } from "sonner";
+import { useAuthStore } from "@/lib/store/auth-store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +31,11 @@ import {
 import type { PokemonCard, Rarity, Grade } from "@/lib/types";
 
 type SortKey =
-  "value_desc" | "value_asc" | "name_asc" | "grade_desc" | "recent";
+  | "value_desc"
+  | "value_asc"
+  | "name_asc"
+  | "grade_desc"
+  | "recent";
 
 const sortOptions: { key: SortKey; label: string }[] = [
   { key: "value_desc", label: "Value: high to low" },
@@ -46,8 +44,6 @@ const sortOptions: { key: SortKey; label: string }[] = [
   { key: "grade_desc", label: "Grade: high to low" },
   { key: "recent", label: "Recently acquired" },
 ];
-
-const highlights = ["card-007", "card-001", "card-003", "card-002"];
 
 function CollectionStats({ ownedCards }: { ownedCards: PokemonCard[] }) {
   const totalCards = ownedCards.reduce((a, c) => a + c.quantity, 0);
@@ -84,82 +80,50 @@ function CollectionStats({ ownedCards }: { ownedCards: PokemonCard[] }) {
   );
 }
 
-function CollectionHighlights({ onView }: { onView: (id: string) => void }) {
-  const highlightCards = highlights
-    .map((id) => getCardById(id))
-    .filter((c): c is PokemonCard => Boolean(c));
-
-  return (
-    <section className="mb-6">
-      <div className="mb-3 flex items-baseline justify-between">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-base font-semibold text-foreground">
-            Collection Highlights
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Your latest and rarest Pokémon discoveries.
-          </p>
-        </div>
-        <Link
-          href="/packs"
-          className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
-        >
-          Open a pack →
-        </Link>
-      </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {highlightCards.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => onView(card.id)}
-            className="group relative overflow-hidden rounded-2xl border border-border bg-surface text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elevated outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-            aria-label={`View ${card.name}`}
-          >
-            <div className="relative">
-              <CardArt
-                src={card.image}
-                alt={card.name}
-                className="rounded-none border-0"
-                sizes="(max-width: 768px) 45vw, 25vw"
-              />
-              <span className="absolute top-2 left-2">
-                <Badge variant={rarityVariant(card.rarity)}>
-                  {card.rarity}
-                </Badge>
-              </span>
-              {card.grade !== "Ungraded" && (
-                <span className="absolute top-2 right-2">
-                  <Badge variant="outline">{card.grade}</Badge>
-                </span>
-              )}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-10">
-                <p className="text-sm font-semibold text-white">{card.name}</p>
-                <p className="text-xs text-white/70">{card.set}</p>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export default function CollectionPage() {
   const router = useRouter();
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+
   const [query, setQuery] = useState("");
   const [setFilter, setSetFilter] = useState("All Sets");
   const [rarityFilter, setRarityFilter] = useState("All Rarities");
   const [gradeFilter, setGradeFilter] = useState("Any Grade");
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [sortKey, setSortKey] = useState<SortKey>("value_desc");
-  const addToCart = useCartStore((s) => s.addItem);
-  const wishlistIds = useWishlistStore((s) => s.ids);
-  const toggleWishlist = useWishlistStore((s) => s.toggle);
 
-  const { data: allCards, isLoading, isError } = useCards();
-  const ownedCards = useMemo(
-    () => (allCards ?? []).filter((c) => c.owned),
+  const { data: allCards = [] } = useCards();
+  const { data: collectionItems = [], isLoading, isError } = useCollectionItems();
+  const { data: setProgress = [] } = useCollectionSets();
+
+  const byId = useMemo(
+    () => new Map(allCards.map((c) => [c.id, c])),
     [allCards],
+  );
+
+  // Join backend collection items with catalog card details.
+  const ownedCards: PokemonCard[] = useMemo(
+    () =>
+      collectionItems.map((item) => {
+        const card = byId.get(item.cardId);
+        const base: PokemonCard = card ?? {
+          id: item.cardId,
+          name: item.cardName,
+          set: item.setName,
+          cardNumber: item.cardNumber ?? "",
+          rarity: (item.rarity as Rarity) ?? "Common",
+          type: "Colorless",
+          grade: (item.grade as Grade) ?? "Ungraded",
+          condition: "Mint",
+          image: "/images/placeholder-card.png",
+          owned: true,
+          quantity: item.quantity,
+          acquiredAt: item.acquiredAt ?? new Date().toISOString(),
+          marketPrice: 0,
+        };
+        return { ...base, owned: true, quantity: item.quantity };
+      }),
+    [collectionItems, byId],
   );
 
   const activePills: FilterPill[] = useMemo(() => {
@@ -248,15 +212,7 @@ export default function CollectionPage() {
       }
     });
     return list;
-  }, [
-    ownedCards,
-    setFilter,
-    rarityFilter,
-    gradeFilter,
-    typeFilter,
-    query,
-    sortKey,
-  ]);
+  }, [ownedCards, setFilter, rarityFilter, gradeFilter, typeFilter, query, sortKey]);
 
   const handleView = useCallback(
     (id: string) => {
@@ -265,35 +221,31 @@ export default function CollectionPage() {
     [router],
   );
 
-  const handleAddToCart = useCallback(
-    (id: string) => {
-      const card = getCardById(id);
-      if (!card) return;
-      addToCart({
-        productId: card.id,
-        name: card.name,
-        image: card.image,
-        price: card.marketPrice,
-      });
-      toast.success(`Added ${card.name} to cart`);
-    },
-    [addToCart],
-  );
-
-  const handleWishlist = useCallback(
-    (id: string) => {
-      toggleWishlist(id);
-      const card = getCardById(id);
-      if (card) {
-        toast.success(
-          wishlistIds.includes(id)
-            ? `Removed ${card.name} from wishlist`
-            : `Added ${card.name} to wishlist`,
-        );
-      }
-    },
-    [toggleWishlist, wishlistIds],
-  );
+  if (!signedIn) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Collection"
+          subtitle="View and manage the Pokémon cards and collectibles you own."
+        />
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border-strong py-20 text-center">
+          <div className="flex size-16 items-center justify-center rounded-full bg-secondary">
+            <LogIn className="size-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Sign in to view your collection
+          </h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Your collection is stored server-side — sign in to see the cards
+            you own, set progress, and collection stats.
+          </p>
+          <Button size="lg" onClick={() => setSignInOpen(true)}>
+            Sign In / Create Account
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -306,7 +258,7 @@ export default function CollectionPage() {
       {/* Stats row */}
       <CollectionStats ownedCards={ownedCards} />
 
-      {/* Tabs — reference pill tabs with lime active */}
+      {/* Tabs */}
       <div
         className="inline-flex w-fit items-center gap-1 rounded-full bg-muted p-1"
         role="tablist"
@@ -329,15 +281,44 @@ export default function CollectionPage() {
         </Link>
       </div>
 
-      {/* Unopened packs */}
-      <UnopenedPacksSection />
-
-      {/* Highlights */}
-      <CollectionHighlights onView={handleView} />
+      {/* Set completion */}
+      {setProgress.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold text-foreground">
+            Set Progress
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {setProgress.map((s) => (
+              <div
+                key={s.setId}
+                className="flex flex-col gap-1 rounded-xl border border-border bg-surface p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">
+                    {s.setName}
+                  </span>
+                  <span className="text-xs font-semibold text-primary">
+                    {Math.round(s.completionPercentage)}%
+                  </span>
+                </div>
+                <div className="h-1 overflow-hidden rounded-full bg-elevated">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${s.completionPercentage}%` }}
+                  />
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  {s.ownedCards}/{s.totalCards} cards
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Rewards progress */}
       <RewardProgress
-        xp={1680}
+        xp={0}
         currentLevelXp={0}
         nextLevelXp={2000}
         nextRewardLabel="1 Free Booster Pack"
@@ -382,7 +363,7 @@ export default function CollectionPage() {
                     className="h-8 w-full rounded-lg border border-border bg-elevated px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/60"
                     aria-label="Filter by set"
                   >
-                    {setFilters.map((s) => (
+                    {SET_FILTERS.map((s) => (
                       <option key={s}>{s}</option>
                     ))}
                   </select>
@@ -397,7 +378,7 @@ export default function CollectionPage() {
                     className="h-8 w-full rounded-lg border border-border bg-elevated px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/60"
                     aria-label="Filter by rarity"
                   >
-                    {rarityFilters.map((r) => (
+                    {RARITY_FILTERS.map((r) => (
                       <option key={r}>{r}</option>
                     ))}
                   </select>
@@ -412,7 +393,7 @@ export default function CollectionPage() {
                     className="h-8 w-full rounded-lg border border-border bg-elevated px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/60"
                     aria-label="Filter by grade"
                   >
-                    {gradeFilters.map((g) => (
+                    {GRADE_FILTERS.map((g) => (
                       <option key={g}>{g}</option>
                     ))}
                   </select>
@@ -427,7 +408,7 @@ export default function CollectionPage() {
                     className="h-8 w-full rounded-lg border border-border bg-elevated px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/60"
                     aria-label="Filter by type"
                   >
-                    {typeFilters.map((t) => (
+                    {TYPE_FILTERS.map((t) => (
                       <option key={t}>{t}</option>
                     ))}
                   </select>
@@ -499,8 +480,8 @@ export default function CollectionPage() {
               key={card.id}
               card={card}
               onView={handleView}
-              onWishlist={handleWishlist}
-              onAddToCart={handleAddToCart}
+              onWishlist={() => {}}
+              onAddToCart={() => {}}
             />
           ))}
         </div>

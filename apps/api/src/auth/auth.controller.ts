@@ -114,7 +114,12 @@ export class AuthController {
   }
 
   @Post("register")
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({
+    default: {
+      limit: Number(process.env.POKE_VAULT_AUTH_REGISTER_RATE_LIMIT ?? 5),
+      ttl: 60_000,
+    },
+  })
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() body: unknown, @Req() req: any, @Res() res: any) {
     this.assertOrigin(req); // login-CSRF defense
@@ -128,7 +133,12 @@ export class AuthController {
   }
 
   @Post("login")
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({
+    default: {
+      limit: Number(process.env.POKE_VAULT_AUTH_LOGIN_RATE_LIMIT ?? 5),
+      ttl: 60_000,
+    },
+  })
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: unknown, @Req() req: any, @Res() res: any) {
     this.assertOrigin(req); // login-CSRF defense

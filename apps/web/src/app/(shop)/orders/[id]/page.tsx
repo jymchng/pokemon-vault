@@ -2,9 +2,10 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Truck, Package, MapPin } from "lucide-react";
+import { ArrowLeft, Check, Truck, Package, MapPin, LogIn } from "lucide-react";
 import { useOrder } from "@/lib/hooks/queries";
-import { orderStatuses } from "@/lib/data/orders";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { ORDER_STATUSES } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,7 +19,25 @@ export default function OrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
   const { data: order, isLoading } = useOrder(id);
+
+  if (!signedIn) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border-strong py-24 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-secondary">
+          <LogIn className="size-8 text-primary" />
+        </div>
+        <h2 className="text-xl font-semibold text-foreground">
+          Sign in to view this order
+        </h2>
+        <Button size="lg" onClick={() => setSignInOpen(true)}>
+          Sign In / Create Account
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -44,7 +63,7 @@ export default function OrderDetailPage({
     );
   }
 
-  const statusIndex = orderStatuses.indexOf(order.status);
+  const statusIndex = ORDER_STATUSES.indexOf(order.status);
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,9 +86,9 @@ export default function OrderDetailPage({
       {/* Status timeline */}
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5">
         <div className="flex items-center justify-between">
-          {orderStatuses.map((status, i) => {
+          {ORDER_STATUSES.map((status, i) => {
             const reached = i <= statusIndex;
-            const isLast = i === orderStatuses.length - 1;
+            const isLast = i === ORDER_STATUSES.length - 1;
             return (
               <div
                 key={status}
@@ -84,9 +103,9 @@ export default function OrderDetailPage({
                         : "border-border bg-elevated text-muted-foreground",
                     )}
                   >
-                    {reached && i < orderStatuses.length - 1 ? (
+                    {reached && i < ORDER_STATUSES.length - 1 ? (
                       <Check className="size-4" />
-                    ) : i === orderStatuses.length - 1 ? (
+                    ) : i === ORDER_STATUSES.length - 1 ? (
                       <Truck className="size-4" />
                     ) : (
                       <span className="text-xs font-semibold">{i + 1}</span>

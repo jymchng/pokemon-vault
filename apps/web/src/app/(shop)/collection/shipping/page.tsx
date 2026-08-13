@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Truck, MapPin, Package, ChevronRight } from "lucide-react";
 import { useAddresses, useShipments } from "@/lib/hooks/queries";
-import type { Shipment } from "@/lib/data/shipping";
+import type { Shipment } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";

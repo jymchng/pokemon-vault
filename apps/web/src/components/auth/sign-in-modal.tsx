@@ -15,29 +15,34 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type Mode = "signin" | "signup" | "forgot";
+type Mode = "signin" | "signup";
 
 export function SignInModal() {
   const open = useAuthStore((s) => s.signInOpen);
   const setOpen = useAuthStore((s) => s.setSignInOpen);
   const signIn = useAuthStore((s) => s.signIn);
+  const signUp = useAuthStore((s) => s.signUp);
+  const loading = useAuthStore((s) => s.loading);
+  const error = useAuthStore((s) => s.error);
+  const clearError = useAuthStore((s) => s.clearError);
 
   const [mode, setMode] = useState<Mode>("signin");
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === "signin" || mode === "signup") {
-      signIn({
-        name: name || "Demo Trainer",
-        email: email || "trainer@vault.io",
-        level: 7,
-        xp: 1680,
-      });
+    clearError();
+    try {
+      if (mode === "signin") {
+        await signIn(email, password);
+      } else {
+        await signUp({ email, password, firstName: firstName || undefined });
+      }
+    } catch {
+      // error is surfaced from the store
     }
-    setOpen(false);
   };
 
   return (
@@ -46,14 +51,12 @@ export function SignInModal() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LogIn className="size-4 text-primary" />
-            {mode === "signin" && "Sign In"}
-            {mode === "signup" && "Create Account"}
-            {mode === "forgot" && "Reset Password"}
+            {mode === "signin" ? "Sign In" : "Create Account"}
           </DialogTitle>
           <DialogDescription>
-            {mode === "signin" && "Welcome back to Pokémon Vault."}
-            {mode === "signup" && "Join the collector community."}
-            {mode === "forgot" && "We'll email you a reset link."}
+            {mode === "signin"
+              ? "Sign in to manage your orders, collection, and rewards."
+              : "Join the collector community. Your collection and orders are stored server-side."}
           </DialogDescription>
         </DialogHeader>
 
@@ -71,7 +74,10 @@ export function SignInModal() {
           ).map((t) => (
             <button
               key={t.key}
-              onClick={() => setMode(t.key)}
+              onClick={() => {
+                setMode(t.key);
+                clearError();
+              }}
               role="tab"
               aria-selected={mode === t.key}
               className={cn(
@@ -94,8 +100,8 @@ export function SignInModal() {
                 <UserIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="auth-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Ash Ketchum"
                   className="pl-9"
                   autoComplete="name"
@@ -110,6 +116,7 @@ export function SignInModal() {
               <Input
                 id="auth-email"
                 type="email"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="trainer@vault.io"
@@ -118,49 +125,48 @@ export function SignInModal() {
               />
             </div>
           </div>
-          {mode !== "forgot" && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="auth-password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="auth-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-9"
-                  autoComplete={
-                    mode === "signin" ? "current-password" : "new-password"
-                  }
-                />
-              </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="auth-password">Password</Label>
+            <div className="relative">
+              <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="auth-password"
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="pl-9"
+                autoComplete={
+                  mode === "signin" ? "current-password" : "new-password"
+                }
+              />
             </div>
+          </div>
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
           )}
-          <Button type="submit" className="w-full">
-            {mode === "signin" && "Sign In"}
-            {mode === "signup" && "Create Account"}
-            {mode === "forgot" && "Send Reset Link"}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading
+              ? "Please wait…"
+              : mode === "signin"
+                ? "Sign In"
+                : "Create Account"}
           </Button>
         </form>
 
         <div className="flex items-center justify-between text-xs">
-          {mode !== "forgot" ? (
-            <button
-              onClick={() => setMode("forgot")}
-              className="text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded"
-            >
-              Forgot password?
-            </button>
-          ) : (
-            <button
-              onClick={() => setMode("signin")}
-              className="text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded"
-            >
-              Back to sign in
-            </button>
-          )}
-          <span className="text-muted-foreground">Demo — no real auth</span>
+          <button
+            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            className="text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded"
+          >
+            {mode === "signin"
+              ? "New here? Create an account"
+              : "Already have an account? Sign in"}
+          </button>
         </div>
       </DialogContent>
     </Dialog>

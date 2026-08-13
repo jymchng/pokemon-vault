@@ -2,21 +2,26 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Heart, ShoppingBag, X } from "lucide-react";
-import { getProductById } from "@/lib/data/products";
-import { getCardById } from "@/lib/data/cards";
+import { Heart, ShoppingBag, X, LogIn } from "lucide-react";
+import { useProducts, useCards } from "@/lib/hooks/queries";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { useWishlistStore } from "@/lib/store/wishlist-store";
 import { useCartStore } from "@/lib/store/cart-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "sonner";
 
 export default function WishlistPage() {
   const ids = useWishlistStore((s) => s.ids);
   const toggle = useWishlistStore((s) => s.toggle);
   const addToCart = useCartStore((s) => s.addItem);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+  const { data: products = [] } = useProducts();
+  const { data: cards = [] } = useCards();
 
+  // Resolve wishlist product ids against the live catalog (products + cards).
   const saved = useMemo(() => {
     const items: {
       id: string;
@@ -26,11 +31,9 @@ export default function WishlistPage() {
       set: string;
       category: string;
       availability: string;
-      rating: number;
-      stock: number;
     }[] = [];
     for (const id of ids) {
-      const p = getProductById(id);
+      const p = products.find((prod) => prod.id === id);
       if (p) {
         items.push({
           id: p.id,
@@ -40,12 +43,10 @@ export default function WishlistPage() {
           set: p.set,
           category: p.category,
           availability: p.availability,
-          rating: p.rating,
-          stock: p.stock,
         });
         continue;
       }
-      const c = getCardById(id);
+      const c = cards.find((card) => card.id === id);
       if (c) {
         items.push({
           id: c.id,
@@ -55,33 +56,63 @@ export default function WishlistPage() {
           set: c.set,
           category: c.grade !== "Ungraded" ? "Graded Card" : "Single Card",
           availability: "In Stock",
-          rating: 4.8,
-          stock: 1,
         });
       }
     }
     return items;
-  }, [ids]);
+  }, [ids, products, cards]);
 
-  const handleRemove = (id: string) => {
-    toggle(id);
-    toast.success("Removed from wishlist");
+  const handleRemove = async (id: string) => {
+    try {
+      await toggle(id);
+      toast.success("Removed from wishlist");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Remove failed");
+    }
   };
 
-  const handleAddToCart = (id: string) => {
-    const p = getProductById(id) ?? getCardById(id);
-    if (!p) return;
-    addToCart({
-      productId: id,
-      name: p.name,
-      image: p.image,
-      price:
-        "price" in p
-          ? (p as { price: number }).price
-          : (p as { marketPrice: number }).marketPrice,
-    });
-    toast.success(`Added ${p.name} to cart`);
+  const handleAddToCart = async (id: string) => {
+    const item = saved.find((i) => i.id === id);
+    if (!item) return;
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await addToCart({
+        productId: id,
+        name: item.name,
+        image: item.image,
+        price: item.price,
+      });
+      toast.success(`Added ${item.name} to cart`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Add to cart failed");
+    }
   };
+
+  if (!signedIn) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Wishlist" subtitle="Save cards and products you love." />
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border-strong py-20 text-center">
+          <div className="flex size-16 items-center justify-center rounded-full bg-secondary">
+            <LogIn className="size-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Sign in to view your wishlist
+          </h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Your wishlist is stored server-side — sign in to see your saved
+            items.
+          </p>
+          <Button size="lg" onClick={() => setSignInOpen(true)}>
+            Sign In / Create Account
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,7 +126,7 @@ export default function WishlistPage() {
               size="sm"
               className="text-muted-foreground"
               onClick={() => {
-                ids.forEach(toggle);
+                ids.forEach((id) => void handleRemove(id));
                 toast.success("Wishlist cleared");
               }}
             >

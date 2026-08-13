@@ -2,130 +2,18 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Package } from "lucide-react";
+import { Sparkles, Package, LogIn } from "lucide-react";
+import { openPack, type PackOpeningResult } from "@/lib/api";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { useCollectionStore } from "@/lib/store/collection-store";
-import { useActivityStore } from "@/lib/store/activity-store";
-import { useRewardsStore } from "@/lib/store/rewards-store";
-import { usePackInventoryStore } from "@/lib/store/pack-inventory-store";
 import { toast } from "sonner";
 import type { BoosterPack } from "@/lib/types";
 
-interface PackPull {
-  id: string;
-  name: string;
-  rarity: string;
-  image: string;
-}
-
-function pickRarity(odds: BoosterPack["odds"]): string {
-  const roll = Math.random() * 100;
-  if (roll < odds.secretRare) return "Secret Rare";
-  if (roll < odds.secretRare + odds.ultraRare) return "Ultra Rare";
-  if (roll < odds.secretRare + odds.ultraRare + odds.rare) return "Rare";
-  if (roll < odds.secretRare + odds.ultraRare + odds.rare + odds.uncommon)
-    return "Uncommon";
-  return "Common";
-}
-
-const PULL_NAMES: Record<string, string[]> = {
-  "Pokémon 151": [
-    "Mew ex",
-    "Charizard ex",
-    "Pikachu",
-    "Squirtle",
-    "Bulbasaur",
-    "Caterpie",
-    "Eevee",
-    "Snorlax",
-    "Venusaur ex",
-    "Blastoise ex",
-  ],
-  "Obsidian Flames": [
-    "Charizard ex",
-    "Pidgeot ex",
-    "Tyranitar ex",
-    "Cleffa",
-    "Geeta",
-    "Riolu",
-    "Eiscue",
-    "Toedscruel",
-    "Gloom",
-    "Ninetales",
-  ],
-  "Scarlet & Violet": [
-    "Koraidon ex",
-    "Miraidon ex",
-    "Pikachu",
-    "Pawmi",
-    "Fidough",
-    "Tinkaton",
-    "Arcanine",
-    "Gardevoir",
-    "Kirlia",
-    "Ralts",
-  ],
-  "Paldean Fates": [
-    "Charizard ex",
-    "Pikachu",
-    "Shiny Dondozo",
-    "Shiny Tatsugiri",
-    "Miraidon ex",
-    "Iono",
-    "Nemona",
-    "Penny",
-    "Shiny Toedscruel",
-    "Shiny Glimmet",
-  ],
-  "Temporal Forces": [
-    "Walking Wake ex",
-    "Iron Leaves ex",
-    "Gouging Fire ex",
-    "Raging Bolt ex",
-    "Iron Crown ex",
-    "Iron Boulder ex",
-    "Litten",
-    "Chimchar",
-    "Piplup",
-    "Turtwig",
-  ],
-  "Twilight Masquerade": [
-    "Ogerpon ex",
-    "Greninja ex",
-    "Umbreon ex",
-    "Dragapult ex",
-    "Tatsugiri",
-    "Gengar",
-    "Munkidori",
-    "Fezandipiti",
-    "Okidogi",
-    "Sinistcha ex",
-  ],
-  "Surging Sparks": [
-    "Pikachu ex",
-    "Lapras ex",
-    "Alolan Exeggutor ex",
-    "Milotic ex",
-    "Flygon ex",
-    "Latias ex",
-    "Latios ex",
-    "Hydreigon ex",
-    "Klawf",
-    "Duraludon",
-  ],
-  "Premium Vault Pack": [
-    "Charizard ex",
-    "Umbreon ex",
-    "Greninja ex",
-    "Mew ex",
-    "Rayquaza ex",
-    "Gengar ex",
-    "Lugia ex",
-    "Pikachu ex",
-    "Eevee ex",
-    "Dragonite ex",
-  ],
-};
-
+/**
+ * Pack opening — server-side (§34-37). The client NEVER picks the cards;
+ * it calls POST /packs/:slug/open and animates the backend's returned pulls.
+ * Requires sign-in (packs persist to the user's collection server-side).
+ */
 export function PackOpenStage({
   pack,
   onDone,
@@ -136,67 +24,45 @@ export function PackOpenStage({
   const [phase, setPhase] = useState<"idle" | "opening" | "revealing" | "done">(
     "idle",
   );
-  const [pulls, setPulls] = useState<PackPull[]>([]);
+  const [opening, setOpening] = useState<PackOpeningResult | null>(null);
   const [revealedIndex, setRevealedIndex] = useState(0);
-  const addCards = useCollectionStore((s) => s.addCards);
-  const addEvent = useActivityStore((s) => s.addEvent);
-  const addXp = useRewardsStore((s) => s.addXp);
-  const consumePack = usePackInventoryStore((s) => s.consumePack);
-  const inventoryPacks = usePackInventoryStore((s) => s.packs);
-  const ownedCount =
-    inventoryPacks.find((p) => p.slug === pack.slug)?.quantity ?? 0;
+  const [error, setError] = useState<string | null>(null);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+  const syncCollection = useCollectionStore((s) => s.sync);
 
-  const generatePulls = (): PackPull[] => {
-    const names = PULL_NAMES[pack.name] ?? PULL_NAMES["Pokémon 151"];
-    return Array.from({ length: 5 }).map((_, i) => {
-      const rarity = pickRarity(pack.odds);
-      const name =
-        rarity === "Secret Rare" || rarity === "Ultra Rare"
-          ? names[i % Math.min(4, names.length)]
-          : names[(i + 3) % names.length];
-      return {
-        id: `${pack.slug}-${i}-${Date.now()}`,
-        name,
-        rarity,
-        image: "/images/placeholder-card.png",
-      };
-    });
-  };
+  const pulls = (opening?.cards ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    rarity: c.rarity ?? "Common",
+    image: c.imageUrl || "/images/placeholder-card.png",
+  }));
 
-  const openPack = () => {
-    if (ownedCount <= 0) return;
-    consumePack(pack.slug);
-    setPulls(generatePulls());
-    setRevealedIndex(0);
+  const open = async () => {
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    setError(null);
     setPhase("opening");
-    setTimeout(() => setPhase("revealing"), 1400);
+    try {
+      const result = await openPack(pack.slug);
+      setOpening(result);
+      setRevealedIndex(0);
+      setPhase("revealing");
+      // Cards were persisted to the user's collection server-side.
+      await syncCollection().catch(() => undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to open pack");
+      setPhase("idle");
+    }
   };
 
   const revealNext = () => {
     const next = revealedIndex + 1;
     if (next >= pulls.length) {
       setPhase("done");
-      // Commit to collection + activity + rewards
-      addCards(
-        pulls.map((p) => ({
-          id: p.id,
-          name: p.name,
-          rarity: p.rarity,
-          set: pack.name,
-          image: p.image,
-        })),
-      );
-      addEvent({
-        id: `evt-${Date.now()}`,
-        type: "opened_pack",
-        title: `Opened ${pack.name} Booster Pack`,
-        subtitle: pulls.map((p) => p.name).join(", "),
-        image: "/images/placeholder-card.png",
-        date: new Date().toISOString(),
-        xp: 10,
-      });
-      addXp(10);
-      toast.success("Pack opened! 5 cards added to your collection", {
+      toast.success("Pack opened! Cards added to your collection", {
         description: `${pulls.filter((p) => p.rarity === "Secret Rare" || p.rarity === "Ultra Rare").length} rare pull(s)`,
       });
       onDone();
@@ -225,18 +91,27 @@ export function PackOpenStage({
             </div>
           </div>
           <button
-            onClick={openPack}
-            disabled={ownedCount <= 0}
-            className="group inline-flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[#e8b93a] outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={open}
+            className="group inline-flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[#e8b93a] outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           >
-            <Package className="size-4 transition-transform group-hover:-rotate-12" />
-            {ownedCount > 0 ? "Open Pack" : "No Packs Left"}
+            {signedIn ? (
+              <>
+                <Package className="size-4 transition-transform group-hover:-rotate-12" />
+                Open Pack
+              </>
+            ) : (
+              <>
+                <LogIn className="size-4" />
+                Sign in to open
+              </>
+            )}
           </button>
           <p className="text-xs text-muted-foreground">
-            {ownedCount > 0
-              ? `${ownedCount} pack${ownedCount === 1 ? "" : "s"} remaining — 5 cards per pack`
-              : "You don't own this pack yet — buy it to unlock opening"}
+            {signedIn
+              ? `${pack.cardsPerPack} cards per pack — cards are added to your collection server-side`
+              : "Opening a pack requires an account (cards are stored server-side)"}
           </p>
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </>
       )}
 

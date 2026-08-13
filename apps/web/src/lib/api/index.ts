@@ -1,11 +1,14 @@
-import { cards, getCardById } from "@/lib/data/cards";
-import { products, getProductById } from "@/lib/data/products";
-import { packs, getPackBySlug, latestPulls } from "@/lib/data/packs";
-import { sets } from "@/lib/data/sets";
-import { platformPulls, getActivityEvents } from "@/lib/data/activity";
-import { rewardTiers, leaderboardEntries, waysToWin } from "@/lib/data/rewards";
-import { addresses, shipments } from "@/lib/data/shipping";
-import { orders, getOrderById } from "@/lib/data/orders";
+/**
+ * Pokémon Vault web → API client (all data from the real backend).
+ *
+ * Every function hits the NestJS backend at /api/v1 (proxied server-side by
+ * next.config.ts rewrites to POKE_VAULT_NEXT_PUBLIC_API_URL). No static mock
+ * fallbacks exist: failures surface as ApiError with a stable HTTP status.
+ *
+ * Auth: the access token (from auth-store) is attached as `Authorization:
+ * Bearer <token>` on every request. 401 → ApiError("Authentication required",
+ * 401) which the UI turns into a sign-in prompt.
+ */
 import type {
   PokemonCard,
   Product,
@@ -13,67 +16,86 @@ import type {
   SetInfo,
   ActivityEvent,
   Order,
+  PlatformPull,
+  LeaderboardEntry,
+  Address,
+  Shipment,
 } from "@/lib/types";
-import type { PlatformPull } from "@/lib/data/activity";
-import type { LeaderboardEntry } from "@/lib/data/rewards";
-import type { Address, Shipment } from "@/lib/data/shipping";
-
-/**
- * Pokémon Vault web → API client (§116).
- *
- * The storefront consumes the real backend at /api/v1 (proxied server-side by
- * next.config.ts rewrites to NEXT_PUBLIC_API_URL). Every function maps the
- * backend's { data, meta } envelope onto the storefront types.
- *
- * Demo-only marketing sections the backend intentionally does not model
- * (leaderboard, ways-to-win, latest-pulls, platform-pulls) keep their static
- * source; NEXT_PUBLIC_MOCK_FALLBACK=true (dev) falls back to static data when
- * the API/DB is unavailable so the UI never looks broken.
- */
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status = 500) {
+  code?: string;
+  constructor(message: string, status = 500, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
-
-/**
- * Static-data fallback for demo/marketing resources (no backend model).
- * G54: users set POKE_VAULT_NEXT_PUBLIC_MOCK_FALLBACK; next.config.ts bridges
- * it into NEXT_PUBLIC_MOCK_FALLBACK (the framework contract Next inlines into
- * client bundles) — no independently-set unprefixed env var exists.
- */
-const USE_MOCK_FALLBACK = process.env.NEXT_PUBLIC_MOCK_FALLBACK === "true";
 
 const API_BASE = "/api/v1";
 
-async function fromBackend<T>(path: string, fallback: T): Promise<T> {
-  try {
-    const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
-    if (res.status === 401 || res.status === 403) {
-      // Authenticated endpoint without a session — fall back (dev/demo).
-      if (USE_MOCK_FALLBACK) return fallback;
-      throw new ApiError("Authentication required", res.status);
-    }
-    if (!res.ok) throw new ApiError(`API ${res.status}`, res.status);
-    const json = (await res.json()) as { data: unknown };
-    const data = json.data;
-    if (data == null) throw new ApiError("API empty", 503);
-    return data as T;
-  } catch (err) {
-    if (USE_MOCK_FALLBACK) return fallback;
-    if (err instanceof ApiError) throw err;
-    throw new ApiError("Data unavailable", 503);
-  }
+/** Access token holder — set by auth-store; read here to avoid circular imports. */
+let _token: string | null = null;
+export function setAccessToken(token: string | null) {
+  _token = token;
 }
+export function getAccessToken(): string | null {
+  return _token;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    data?: unknown;
+    error?: { code?: string; message?: string };
+  };
+  if (!res.ok) {
+    const code = json.error?.code;
+    const message =
+      res.status === 401 || res.status === 403
+        ? "Authentication required"
+        : json.error?.message || `API ${res.status}`;
+    throw new ApiError(message, res.status, code);
+  }
+  if (json.data == null) throw new ApiError("API empty", 503);
+  return json.data as T;
+}
+
+/** GET returning the raw `data` payload. */
+const get = <T>(path: string) => request<T>(path);
+
+/** POST with a JSON body. */
+const post = <T>(path: string, body?: unknown) =>
+  request<T>(path, {
+    method: "POST",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+/** PATCH with a JSON body. */
+const patch = <T>(path: string, body: unknown) =>
+  request<T>(path, { method: "PATCH", body: JSON.stringify(body) });
+
+/** DELETE. */
+const del = <T>(path: string, body?: unknown) =>
+  request<T>(path, {
+    method: "DELETE",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 
 /**
  * The backend paginates list endpoints as `{ data: { items: [...], meta } }`
- * (§86). This normalizes either a plain array or that envelope to an array so
- * callers can map uniformly.
+ * (§86). Normalize either a plain array or that envelope to an array.
  */
 function asList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
@@ -87,14 +109,50 @@ function asList(data: unknown): unknown[] {
   return [];
 }
 
-/** Simulated latency for the static fallback path only (loading states). */
-async function simulate<T>(data: T, latency = 250): Promise<T> {
-  if (!USE_MOCK_FALLBACK) return data;
-  await new Promise((resolve) => setTimeout(resolve, latency));
-  return data;
+/* ── Auth ──────────────────────────────────────────────────────────────── */
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  status: string;
+  role: string;
 }
 
-/* ── Cards ──────────────────────────────────────────────────────────────── */
+interface AuthResultDto {
+  user: AuthUser;
+  accessToken: string;
+}
+
+export async function apiRegister(input: {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+}): Promise<AuthResultDto> {
+  return post<AuthResultDto>("/auth/register", input);
+}
+
+export async function apiLogin(input: {
+  email: string;
+  password: string;
+}): Promise<AuthResultDto> {
+  return post<AuthResultDto>("/auth/login", input);
+}
+
+export async function apiMe(): Promise<{ user: AuthUser }> {
+  return get<{ user: AuthUser }>("/auth/me");
+}
+
+export async function apiLogout(): Promise<void> {
+  await post<unknown>("/auth/logout", {}).catch(() => undefined);
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
 
 function mapCard(c: Record<string, unknown>): PokemonCard {
   return {
@@ -120,25 +178,18 @@ function mapCard(c: Record<string, unknown>): PokemonCard {
 }
 
 export async function fetchCards(): Promise<PokemonCard[]> {
-  const data = await fromBackend<unknown>(
-    "/cards?limit=100",
-    cards as unknown,
-  );
-  return simulate(asList(data).map((c) => mapCard(c as Record<string, unknown>)));
+  const data = await get<unknown>("/cards?limit=100");
+  return asList(data).map((c) => mapCard(c as Record<string, unknown>));
 }
 
 export async function fetchCardById(
   id: string,
 ): Promise<PokemonCard | undefined> {
-  const data = await fromBackend<Record<string, unknown> | null>(
-    `/cards/${id}`,
-    getCardById(id) as unknown as Record<string, unknown>,
-  );
-  const card = data ? mapCard(data) : getCardById(id);
-  return card ? simulate(card, 120) : undefined;
+  const data = await get<Record<string, unknown> | null>(`/cards/${id}`);
+  return data ? mapCard(data) : undefined;
 }
 
-/* ── Products ───────────────────────────────────────────────────────────── */
+/* ── Products ──────────────────────────────────────────────────────────── */
 
 function mapProduct(p: Record<string, unknown>): Product {
   const availability = String(p.availability ?? "In Stock") as Product["availability"];
@@ -148,11 +199,7 @@ function mapProduct(p: Record<string, unknown>): Product {
     category: (p.category as Product["category"]) ?? "Other",
     set: String(p.setName ?? p.set ?? ""),
     price: Number(p.price ?? 0),
-    // Backend products carry no image field (cards/packs do) — fall back to
-    // the shared placeholder so product cards never render a broken <img>.
-    image: String(
-      p.imageUrl ?? p.image ?? "/images/placeholder-card.png",
-    ),
+    image: String(p.imageUrl ?? p.image ?? "/images/placeholder-card.png"),
     stock: Number(p.available ?? p.stock ?? 0),
     rating: Number(p.rating ?? 0),
     availability: ["In Stock", "Low Stock", "Sold Out"].includes(availability)
@@ -165,27 +212,18 @@ function mapProduct(p: Record<string, unknown>): Product {
 }
 
 export async function fetchProducts(): Promise<Product[]> {
-  const data = await fromBackend<unknown>(
-    "/products?limit=100",
-    products as unknown,
-  );
-  return simulate(
-    asList(data).map((p) => mapProduct(p as Record<string, unknown>)),
-  );
+  const data = await get<unknown>("/products?limit=100");
+  return asList(data).map((p) => mapProduct(p as Record<string, unknown>));
 }
 
 export async function fetchProductById(
   id: string,
 ): Promise<Product | undefined> {
-  const data = await fromBackend<Record<string, unknown> | null>(
-    `/products/${id}`,
-    getProductById(id) as unknown as Record<string, unknown>,
-  );
-  const product = data ? mapProduct(data) : getProductById(id);
-  return product ? simulate(product, 120) : undefined;
+  const data = await get<Record<string, unknown> | null>(`/products/${id}`);
+  return data ? mapProduct(data) : undefined;
 }
 
-/* ── Packs ──────────────────────────────────────────────────────────────── */
+/* ── Packs ─────────────────────────────────────────────────────────────── */
 
 function normalizePack(p: Record<string, unknown>): BoosterPack {
   const contents = p.contents as string | string[] | undefined;
@@ -213,30 +251,34 @@ function normalizePack(p: Record<string, unknown>): BoosterPack {
 }
 
 export async function fetchPacks(): Promise<BoosterPack[]> {
-  const data = await fromBackend<unknown[]>(
-    "/packs",
-    packs as unknown as unknown[],
-  );
-  return simulate((data as Record<string, unknown>[]).map(normalizePack));
+  const data = await get<unknown[]>("/packs");
+  return (data as Record<string, unknown>[]).map(normalizePack);
 }
 
 export async function fetchPackBySlug(
   slug: string,
 ): Promise<BoosterPack | undefined> {
-  const data = await fromBackend<Record<string, unknown> | null>(
-    `/packs/${slug}`,
-    getPackBySlug(slug) as unknown as Record<string, unknown>,
-  );
-  const pack = data ? normalizePack(data) : getPackBySlug(slug);
-  return pack ? simulate(pack, 120) : undefined;
+  const data = await get<Record<string, unknown> | null>(`/packs/${slug}`);
+  return data ? normalizePack(data) : undefined;
 }
 
-export async function fetchLatestPulls() {
-  // Backend does not model this demo section — static source only.
-  return simulate(latestPulls);
+export interface PackOpeningResult {
+  id: string;
+  packId: string;
+  cards: { id: string; name: string; rarity: string; setName?: string; imageUrl?: string }[];
+  createdAt: string;
 }
 
-/* ── Sets ───────────────────────────────────────────────────────────────── */
+export async function openPack(
+  slugOrId: string,
+  idempotencyKey?: string,
+): Promise<PackOpeningResult> {
+  return post<PackOpeningResult>(`/packs/${slugOrId}/open`, {
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  });
+}
+
+/* ── Sets ──────────────────────────────────────────────────────────────── */
 
 function mapSet(s: Record<string, unknown>): SetInfo {
   return {
@@ -254,95 +296,205 @@ function mapSet(s: Record<string, unknown>): SetInfo {
 }
 
 export async function fetchSets(): Promise<SetInfo[]> {
-  const data = await fromBackend<unknown[]>(
-    "/sets",
-    sets as unknown as unknown[],
-  );
-  return simulate((data as Record<string, unknown>[]).map(mapSet));
+  const data = await get<unknown[]>("/sets");
+  return (data as Record<string, unknown>[]).map(mapSet);
 }
 
-/* ── Activity / platform pulls (demo sections — static source) ─────────── */
-
-export async function fetchActivity(): Promise<ActivityEvent[]> {
-  return simulate(getActivityEvents());
+export async function fetchSetBySlugOrId(
+  slugOrId: string,
+): Promise<SetInfo | undefined> {
+  const data = await get<Record<string, unknown> | null>(`/sets/${slugOrId}`);
+  return data ? mapSet(data) : undefined;
 }
 
-export async function fetchPlatformPulls(): Promise<PlatformPull[]> {
-  return simulate(platformPulls);
+/* ── Rewards ───────────────────────────────────────────────────────────── */
+
+export interface RewardAccount {
+  xp: number;
+  level: number;
+  tierName?: string | null;
+  progress?: { currentTierXp: number; nextTierXp: number; percent: number } | null;
 }
 
-/* ── Rewards / leaderboard ──────────────────────────────────────────────── */
-
-export async function fetchRewardTiers() {
-  // Backend: /rewards/tiers → [{ id, name, level, xpRequired }].
-  const data = await fromBackend<unknown[]>(
-    "/rewards/tiers",
-    rewardTiers as unknown as unknown[],
-  );
-  return simulate(
-    (data as Record<string, unknown>[]).map((t) => ({
-      id: String(t.id ?? t.level ?? ""),
-      xp: Number(t.xpRequired ?? t.xp ?? 0),
-      label: String(t.name ?? t.label ?? ""),
-      icon: String(t.icon ?? ""),
-    })),
-  );
+export async function fetchRewardTiers(): Promise<
+  { id: string; xp: number; label: string; icon: string }[]
+> {
+  const data = await get<unknown[]>("/rewards/tiers");
+  return (data as Record<string, unknown>[]).map((t) => ({
+    id: String(t.id ?? t.level ?? ""),
+    xp: Number(t.xpRequired ?? t.xp ?? 0),
+    label: String(t.name ?? t.label ?? ""),
+    icon: String(t.icon ?? ""),
+  }));
 }
 
-export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  // Demo-only marketing section — static source.
-  return simulate(leaderboardEntries);
+export async function fetchRewardAccount(): Promise<RewardAccount> {
+  return get<RewardAccount>("/rewards/me");
 }
 
-export async function fetchWaysToWin() {
-  return simulate(waysToWin);
+/* ── Cart ──────────────────────────────────────────────────────────────── */
+
+export interface CartItemDto {
+  id: string;
+  productId: string;
+  sku: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  available: number;
 }
 
-/* ── Shipping ───────────────────────────────────────────────────────────── */
-
-function mapAddress(a: Record<string, unknown>): Address {
-  return {
-    id: String(a.id),
-    label: String(a.label ?? ""),
-    name: String(a.name ?? ""),
-    line1: String(a.line1 ?? ""),
-    line2: a.line2 != null ? String(a.line2) : undefined,
-    city: String(a.city ?? ""),
-    state: String(a.state ?? ""),
-    postal: String(a.postal ?? ""),
-    country: String(a.country ?? "US"),
-    current: Boolean(a.isDefault ?? a.current),
-  };
+export interface CartDto {
+  id: string;
+  items: CartItemDto[];
+  subtotal: number;
+  itemCount: number;
 }
 
-export async function fetchAddresses(): Promise<Address[]> {
-  const data = await fromBackend<unknown[]>(
-    "/shipping/addresses",
-    addresses as unknown as unknown[],
-  );
-  return simulate((data as Record<string, unknown>[]).map(mapAddress));
+export async function fetchCart(): Promise<CartDto> {
+  return get<CartDto>("/cart/items");
 }
 
-export async function fetchShipments(): Promise<Shipment[]> {
-  const data = await fromBackend<unknown[]>(
-    "/shipping/shipments",
-    shipments as unknown as unknown[],
-  );
-  return simulate(
-    (data as Record<string, unknown>[]).map((s) => {
-      const items = s.items as string | Shipment["items"] | undefined;
-      return {
-        ...s,
-        items:
-          typeof items === "string"
-            ? (JSON.parse(items) as Shipment["items"])
-            : ((items ?? []) as Shipment["items"]),
-      } as Shipment;
-    }),
-  );
+export async function addCartItem(
+  productId: string,
+  quantity = 1,
+): Promise<CartDto> {
+  return post<CartDto>("/cart/items", { productId, quantity });
 }
 
-/* ── Orders ─────────────────────────────────────────────────────────────── */
+export async function updateCartItem(
+  productId: string,
+  quantity: number,
+): Promise<CartDto> {
+  return patch<CartDto>(`/cart/items/${productId}`, { quantity });
+}
+
+export async function removeCartItem(productId: string): Promise<CartDto> {
+  return del<CartDto>(`/cart/items/${productId}`);
+}
+
+export async function clearCart(): Promise<CartDto> {
+  return del<CartDto>("/cart/items");
+}
+
+/* ── Wishlist ──────────────────────────────────────────────────────────── */
+
+export interface WishlistItemDto {
+  id: string;
+  productId: string;
+  sku: string;
+  productName: string;
+  price: number;
+  status: string;
+}
+
+export async function fetchWishlist(): Promise<WishlistItemDto[]> {
+  const data = await get<unknown[]>("/wishlist/items");
+  return (data as Record<string, unknown>[]).map((w) => ({
+    id: String(w.id),
+    productId: String(w.productId),
+    sku: String(w.sku ?? ""),
+    productName: String(w.productName ?? ""),
+    price: Number(w.price ?? 0),
+    status: String(w.status ?? ""),
+  }));
+}
+
+export async function addWishlistItem(productId: string): Promise<void> {
+  await post<unknown>("/wishlist/items", { productId });
+}
+
+export async function removeWishlistItem(productId: string): Promise<void> {
+  await del<unknown>(`/wishlist/items/${productId}`);
+}
+
+/* ── Collection ────────────────────────────────────────────────────────── */
+
+export interface CollectionItemDto {
+  id: string;
+  cardId: string;
+  cardName: string;
+  cardNumber: string | null;
+  rarity: string | null;
+  setName: string;
+  quantity: number;
+  condition: string | null;
+  grade: string | null;
+  source: string;
+  acquiredAt: string | null;
+}
+
+export interface SetProgressDto {
+  setId: string;
+  setName: string;
+  slug: string;
+  ownedCards: number;
+  totalCards: number;
+  completionPercentage: number;
+}
+
+export async function fetchCollectionItems(): Promise<CollectionItemDto[]> {
+  const data = await get<unknown[]>("/collection/items");
+  return (data as Record<string, unknown>[]).map((c) => ({
+    id: String(c.id),
+    cardId: String(c.cardId),
+    cardName: String(c.cardName ?? ""),
+    cardNumber: c.cardNumber != null ? String(c.cardNumber) : null,
+    rarity: c.rarity != null ? String(c.rarity) : null,
+    setName: String(c.setName ?? ""),
+    quantity: Number(c.quantity ?? 0),
+    condition: c.condition != null ? String(c.condition) : null,
+    grade: c.grade != null ? String(c.grade) : null,
+    source: String(c.source ?? ""),
+    acquiredAt: c.acquiredAt != null ? String(c.acquiredAt) : null,
+  }));
+}
+
+export async function fetchCollectionSets(): Promise<SetProgressDto[]> {
+  const data = await get<unknown[]>("/collection/sets");
+  return (data as Record<string, unknown>[]).map((s) => ({
+    setId: String(s.setId),
+    setName: String(s.setName ?? ""),
+    slug: String(s.slug ?? ""),
+    ownedCards: Number(s.ownedCards ?? 0),
+    totalCards: Number(s.totalCards ?? 0),
+    completionPercentage: Number(s.completionPercentage ?? 0),
+  }));
+}
+
+export async function fetchCollectionActivity(): Promise<ActivityEvent[]> {
+  const data = await get<unknown[]>("/collection/activity");
+  return (data as Record<string, unknown>[]).map((a) => {
+    const rawType = String(a.eventType ?? "CARD_ADDED");
+    const meta = (a.metadata ?? {}) as Record<string, unknown>;
+    const typeMap: Record<string, ActivityEvent["type"]> = {
+      CARD_ADDED: "added",
+      CARD_REMOVED: "sold",
+      PACK_OPENED: "opened_pack",
+      ORDER_COMPLETED: "purchased",
+      REWARD_EARNED: "purchased",
+      REWARD_REDEEMED: "purchased",
+    };
+    return {
+      id: String(a.id),
+      type: typeMap[rawType] ?? "added",
+      title: String(meta.title ?? a.entityType ?? "Activity"),
+      subtitle: String(meta.subtitle ?? ""),
+      image: String(meta.image ?? "/images/placeholder-card.png"),
+      date: String(a.createdAt ?? new Date().toISOString()),
+    };
+  });
+}
+
+export async function addCollectionItem(
+  cardId: string,
+  quantity = 1,
+): Promise<void> {
+  await post<unknown>("/collection/items", { cardId, quantity });
+}
+
+/* ── Orders ────────────────────────────────────────────────────────────── */
 
 function mapOrder(o: Record<string, unknown>): Order {
   return {
@@ -372,18 +524,87 @@ function mapOrder(o: Record<string, unknown>): Order {
 }
 
 export async function fetchOrders(): Promise<Order[]> {
-  const data = await fromBackend<unknown>(
-    "/orders?limit=50",
-    orders as unknown,
-  );
-  return simulate(asList(data).map((o) => mapOrder(o as Record<string, unknown>)));
+  const data = await get<unknown>("/orders?limit=50");
+  return asList(data).map((o) => mapOrder(o as Record<string, unknown>));
 }
 
 export async function fetchOrderById(id: string): Promise<Order | undefined> {
-  const data = await fromBackend<Record<string, unknown> | null>(
-    `/orders/${id}`,
-    getOrderById(id) as unknown as Record<string, unknown>,
-  );
-  const order = data ? mapOrder(data) : getOrderById(id);
-  return order ? simulate(order, 120) : undefined;
+  const data = await get<Record<string, unknown> | null>(`/orders/${id}`);
+  return data ? mapOrder(data) : undefined;
+}
+
+/* ── Shipping ──────────────────────────────────────────────────────────── */
+
+function mapAddress(a: Record<string, unknown>): Address {
+  return {
+    id: String(a.id),
+    label: String(a.label ?? ""),
+    name: String(a.name ?? ""),
+    line1: String(a.line1 ?? ""),
+    line2: a.line2 != null ? String(a.line2) : undefined,
+    city: String(a.city ?? ""),
+    state: String(a.state ?? ""),
+    postal: String(a.postal ?? ""),
+    country: String(a.country ?? "US"),
+    current: Boolean(a.isDefault ?? a.current),
+  };
+}
+
+export async function fetchAddresses(): Promise<Address[]> {
+  const data = await get<unknown[]>("/shipping/addresses");
+  return (data as Record<string, unknown>[]).map(mapAddress);
+}
+
+export async function fetchShipments(): Promise<Shipment[]> {
+  const data = await get<unknown[]>("/shipping/shipments");
+  return (data as Record<string, unknown>[]).map((s) => {
+    const items = s.items as string | Shipment["items"] | undefined;
+    return {
+      ...s,
+      items:
+        typeof items === "string"
+          ? (JSON.parse(items) as Shipment["items"])
+          : ((items ?? []) as Shipment["items"]),
+    } as Shipment;
+  });
+}
+
+/* ── Checkout ──────────────────────────────────────────────────────────── */
+
+export interface CheckoutResult {
+  order: Record<string, unknown>;
+  reservations?: unknown[];
+}
+
+export async function startCheckout(
+  body: { items?: { productId: string; quantity: number }[]; email?: string } = {},
+): Promise<CheckoutResult> {
+  return post<CheckoutResult>("/checkout", body);
+}
+
+export async function payOrder(
+  orderId: string,
+  paymentMethod = "card",
+): Promise<Record<string, unknown>> {
+  return post<Record<string, unknown>>(`/checkout/${orderId}/pay`, {
+    paymentMethod,
+  });
+}
+
+/* ── Search ────────────────────────────────────────────────────────────── */
+
+export async function searchCatalog(query: string): Promise<{
+  products: Product[];
+  cards: PokemonCard[];
+}> {
+  const data = await get<{
+    products?: unknown[];
+    cards?: unknown[];
+  }>(`/search?q=${encodeURIComponent(query)}`);
+  return {
+    products: (data.products ?? []).map((p) =>
+      mapProduct(p as Record<string, unknown>),
+    ),
+    cards: (data.cards ?? []).map((c) => mapCard(c as Record<string, unknown>)),
+  };
 }

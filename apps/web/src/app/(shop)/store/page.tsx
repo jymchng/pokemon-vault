@@ -8,11 +8,7 @@ import {
   Heart,
   ShoppingBag,
 } from "lucide-react";
-import {
-  categories,
-  sortOptions,
-  type ProductSortKey,
-} from "@/lib/data/products";
+import { CATEGORIES, SORT_OPTIONS, type ProductSortKey } from "@/lib/types";
 import { useProducts } from "@/lib/hooks/queries";
 import { ProductCard } from "@/components/products/product-card";
 import { PageHeader, SectionHeader } from "@/components/ui/page-header";
@@ -27,6 +23,7 @@ import { PriceTag } from "@/components/ui/price-tag";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useWishlistStore } from "@/lib/store/wishlist-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -154,6 +151,8 @@ export default function StorePage() {
   const addToCart = useCartStore((s) => s.addItem);
   const wishlistIds = useWishlistStore((s) => s.ids);
   const toggleWishlist = useWishlistStore((s) => s.toggle);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
 
   const { data: allProducts, isLoading, isError } = useProducts();
 
@@ -200,29 +199,43 @@ export default function StorePage() {
     return list;
   }, [query, category, sortKey, allProducts]);
 
-  const handleAddToCart = (id: string) => {
-    // Look up from the LIVE backend product list (not the static mock) so
-    // backend UUIDs resolve — the grid renders real API products (§116).
+  const handleAddToCart = async (id: string) => {
+    // Look up from the LIVE backend product list — the grid renders real API
+    // products (§116). Cart is backend-persisted and requires sign-in.
     const p = (allProducts ?? []).find((prod) => prod.id === id);
     if (!p || p.availability === "Sold Out") return;
-    addToCart({
-      productId: p.id,
-      name: p.name,
-      image: p.image,
-      price: p.price,
-    });
-    toast.success(`Added ${p.name} to cart`);
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await addToCart({
+        productId: p.id,
+        name: p.name,
+        image: p.image,
+        price: p.price,
+      });
+      toast.success(`Added ${p.name} to cart`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Add to cart failed");
+    }
   };
 
-  const handleWishlist = (id: string) => {
-    toggleWishlist(id);
+  const handleWishlist = async (id: string) => {
     const p = (allProducts ?? []).find((prod) => prod.id === id);
-    if (p) {
+    if (!signedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    try {
+      await toggleWishlist(id);
       toast.success(
         wishlistIds.includes(id)
-          ? `Removed ${p.name} from wishlist`
-          : `Added ${p.name} to wishlist`,
+          ? `Removed ${p?.name ?? "item"} from wishlist`
+          : `Added ${p?.name ?? "item"} to wishlist`,
       );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Wishlist update failed");
     }
   };
 
@@ -282,7 +295,7 @@ export default function StorePage() {
       <section className="flex flex-col gap-3">
         <SectionHeader title="Shop All" />
         <div className="scrollbar-none -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
-          {categories.map((c) => (
+          {CATEGORIES.map((c) => (
             <button
               key={c}
               onClick={() => setCategory(c)}
@@ -322,14 +335,14 @@ export default function StorePage() {
                   className="text-muted-foreground"
                 >
                   <SlidersHorizontal className="size-3.5" />
-                  {sortOptions.find((o) => o.key === sortKey)?.label}
+                  {SORT_OPTIONS.find((o) => o.key === sortKey)?.label}
                 </Button>
               }
             >
               <span className="sr-only">Sort products</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-52">
-              {sortOptions.map((opt) => (
+              {SORT_OPTIONS.map((opt) => (
                 <DropdownMenuItem
                   key={opt.key}
                   onClick={() => setSortKey(opt.key)}

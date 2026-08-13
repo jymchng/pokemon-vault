@@ -3,6 +3,7 @@
 import { ShoppingBag, Trash2, Plus, Minus } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useUiStore } from "@/lib/store/ui-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { formatCurrency } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -13,6 +14,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { toast } from "sonner";
 
 export function CartDrawer() {
   const open = useUiStore((s) => s.cartOpen);
@@ -21,6 +23,38 @@ export function CartDrawer() {
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const subtotal = useCartStore((s) => s.subtotal);
+  const signedIn = useAuthStore((s) => s.signedIn);
+  const setSignInOpen = useAuthStore((s) => s.setSignInOpen);
+
+  const handleUpdateQuantity = async (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      await handleRemove(productId);
+      return;
+    }
+    try {
+      await updateQuantity(productId, quantity);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    }
+  };
+
+  const handleRemove = async (productId: string) => {
+    try {
+      await removeItem(productId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Remove failed");
+    }
+  };
+
+  const handleCheckout = () => {
+    if (!signedIn) {
+      setOpen(false);
+      setSignInOpen(true);
+      return;
+    }
+    setOpen(false);
+    window.location.href = "/checkout";
+  };
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -74,7 +108,7 @@ export function CartDrawer() {
                         variant="outline"
                         size="xs"
                         onClick={() =>
-                          updateQuantity(item.productId, item.quantity - 1)
+                          handleUpdateQuantity(item.productId, item.quantity - 1)
                         }
                         aria-label={`Decrease ${item.name} quantity`}
                       >
@@ -87,7 +121,7 @@ export function CartDrawer() {
                         variant="outline"
                         size="xs"
                         onClick={() =>
-                          updateQuantity(item.productId, item.quantity + 1)
+                          handleUpdateQuantity(item.productId, item.quantity + 1)
                         }
                         aria-label={`Increase ${item.name} quantity`}
                       >
@@ -99,7 +133,7 @@ export function CartDrawer() {
                     variant="ghost"
                     size="icon-sm"
                     className="text-muted-foreground hover:text-destructive"
-                    onClick={() => removeItem(item.productId)}
+                    onClick={() => handleRemove(item.productId)}
                     aria-label={`Remove ${item.name}`}
                   >
                     <Trash2 className="size-4" />
@@ -137,10 +171,9 @@ export function CartDrawer() {
               size="lg"
               className="w-full"
               disabled={items.length === 0}
-              render={<a href="/checkout" />}
-              nativeButton={false}
+              onClick={handleCheckout}
             >
-              Checkout
+              {signedIn ? "Checkout" : "Sign in to Checkout"}
             </Button>
             <Button
               variant="ghost"
