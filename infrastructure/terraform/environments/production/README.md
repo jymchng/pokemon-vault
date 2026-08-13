@@ -15,7 +15,7 @@ No Kubernetes — Fargate only.
 ```bash
 cd infrastructure/terraform/environments/production
 cp terraform.tfvars.example terraform.tfvars     # fill real values
-TF_VAR_app_secrets='{"JWT_SECRET":"..."}' \
+TF_VAR_app_secrets='{"POKE_VAULT_POKE_VAULT_JWT_SECRET":"..."}' \
   terraform init && terraform plan && terraform apply
 ```
 

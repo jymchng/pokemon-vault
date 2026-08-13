@@ -13,15 +13,18 @@ export interface SentryInit {
 
 let enabled = false;
 
-export function initSentry(): SentryInit {
-  const dsn = process.env.SENTRY_DSN;
+export function initSentry(
+  dsn?: string,
+  environment?: string,
+  release?: string,
+): SentryInit {
   if (!dsn) return { started: false };
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Sentry = require("@sentry/node");
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV || "development",
-    release: process.env.SENTRY_RELEASE || undefined,
+    environment: environment || "development",
+    release: release || undefined,
     tracesSampleRate: 0.1,
   });
   enabled = true;

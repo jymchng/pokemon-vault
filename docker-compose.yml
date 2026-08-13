@@ -81,15 +81,15 @@ services:
         required: false
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://${POSTGRES_USER:-pokemon}:${POSTGRES_PASSWORD:-pokemon}@postgres:5432/${POSTGRES_DB:-pokemon_vault}?schema=public
-      REDIS_URL: redis://redis:6379
-      S3_ENDPOINT: http://minio:9000
-      S3_BUCKET: ${S3_BUCKET:-pokemon-vault}
-      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      WEB_ORIGIN: http://localhost:3000
+      POKE_VAULT_DATABASE_URL: postgresql://${POSTGRES_USER:-pokemon}:${POSTGRES_PASSWORD:-pokemon}@postgres:5432/${POSTGRES_DB:-pokemon_vault}?schema=public
+      POKE_VAULT_REDIS_URL: redis://redis:6379
+      POKE_VAULT_S3_ENDPOINT: http://minio:9000
+      POKE_VAULT_S3_BUCKET: ${POKE_VAULT_S3_BUCKET:-pokemon-vault}
+      POKE_VAULT_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      POKE_VAULT_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      POKE_VAULT_SMTP_HOST: mailpit
+      POKE_VAULT_SMTP_PORT: 1025
+      POKE_VAULT_WEB_ORIGIN: http://localhost:3000
     ports:
       - "${API_PORT:-3001}:3001"
     volumes:
@@ -126,8 +126,8 @@ services:
         required: false
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://${POSTGRES_USER:-pokemon}:${POSTGRES_PASSWORD:-pokemon}@postgres:5432/${POSTGRES_DB:-pokemon_vault}?schema=public
-      REDIS_URL: redis://redis:6379
+      POKE_VAULT_DATABASE_URL: postgresql://${POSTGRES_USER:-pokemon}:${POSTGRES_PASSWORD:-pokemon}@postgres:5432/${POSTGRES_DB:-pokemon_vault}?schema=public
+      POKE_VAULT_REDIS_URL: redis://redis:6379
     volumes:
       - ./apps/worker:/app/apps/worker
       - ./packages:/app/packages
@@ -159,7 +159,7 @@ services:
         required: false
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      POKE_VAULT_NEXT_PUBLIC_API_URL: http://localhost:3001
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:

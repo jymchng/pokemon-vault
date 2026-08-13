@@ -61,7 +61,7 @@ pg_dump --format=custom --no-owner --compress=9
    # → validates checksum, decrypt, pg_restore, table count, product+order counts
    ```
 
-6. **Cut over**: repoint `DATABASE_URL`, run `pnpm --filter @pokemon-vault/api
+6. **Cut over**: repoint `POKE_VAULT_DATABASE_URL`, run `pnpm --filter @pokemon-vault/api
    db:migrate:deploy` to apply any newer migrations, restart API + worker.
 
 ## 4. Restore drills

@@ -17,7 +17,7 @@ import { MediaController } from "./media.controller";
       useFactory: () => {
         // MinIO (local) and S3 (prod) implement ObjectStorage and are selected
         // via OBJECT_STORAGE env; memory is the default for dev/tests.
-        const kind = process.env.OBJECT_STORAGE || "memory";
+        const kind = process.env.POKE_VAULT_OBJECT_STORAGE || "memory";
         if (kind !== "memory") {
           // Real MinIO/S3 adapters plug in here.
         }

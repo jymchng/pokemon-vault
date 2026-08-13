@@ -57,6 +57,6 @@ versioned S3 state + revert tfvars. See docs/operations/deploy-safety.md §5.
 
 - Production DB: encrypted (sslmode require/verify-full), private networking,
   least-privilege `pv_app` role, no public port (§55).
-- Secrets via AWS Secrets Manager / Doppler (SECRETS_PROVIDER), never in git or
+- Secrets via AWS Secrets Manager / Doppler (POKE_VAULT_SECRETS_PROVIDER), never in git or
   images (§56); `guard-env.sh` enforces.
-- CORS restricted to `WEB_ORIGIN`; Helmet + CSP + HSTS; Redis rate limiting (§52-54).
+- CORS restricted to `POKE_VAULT_WEB_ORIGIN`; Helmet + CSP + HSTS; Redis rate limiting (§52-54).

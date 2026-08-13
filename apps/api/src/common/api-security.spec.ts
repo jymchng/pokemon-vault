@@ -45,7 +45,7 @@ describe("auth tokens (§97)", () => {
 
 describe("AuthGuard (§97)", () => {
   it("rejects missing/invalid token and accepts a valid one", () => {
-    process.env.JWT_SECRET = SECRET;
+    process.env.POKE_VAULT_JWT_SECRET = SECRET;
     const guard = new AuthGuard(new CorrelationService());
     const ctx = (headers: Record<string, string>) => ({
       switchToHttp: () => ({ getRequest: () => ({ headers }) }),

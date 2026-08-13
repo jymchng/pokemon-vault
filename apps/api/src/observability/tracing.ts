@@ -16,8 +16,7 @@ export interface TracingInit {
   started: boolean;
 }
 
-export function initTracing(): TracingInit {
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+export function initTracing(endpoint?: string): TracingInit {
   if (!endpoint) return { started: false };
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires

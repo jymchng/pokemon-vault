@@ -2,12 +2,15 @@
   "name": "@pokemon-vault/config",
   "version": "0.1.0",
   "private": true,
-  "description": "Centralized validated configuration, feature flags and cron schedules (§106-108). Plain CommonJS + hand-written types — no build step.",
+  "description": "Centralized validated configuration (G54): config/app.toml source of truth + POKE_VAULT_ env overrides, feature flags and cron schedules. Plain CommonJS + hand-written types \u2014 no build step.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "scripts": {
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --test src/index.spec.js"
+  },
+  "dependencies": {
+    "@iarna/toml": "^2.2.5"
   }
 }

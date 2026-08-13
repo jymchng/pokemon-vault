@@ -40,7 +40,12 @@ export class ApiError extends Error {
   }
 }
 
-/** Static-data fallback for demo/marketing resources (no backend model). */
+/**
+ * Static-data fallback for demo/marketing resources (no backend model).
+ * G54: users set POKE_VAULT_NEXT_PUBLIC_MOCK_FALLBACK; next.config.ts bridges
+ * it into NEXT_PUBLIC_MOCK_FALLBACK (the framework contract Next inlines into
+ * client bundles) — no independently-set unprefixed env var exists.
+ */
 const USE_MOCK_FALLBACK = process.env.NEXT_PUBLIC_MOCK_FALLBACK === "true";
 
 const API_BASE = "/api/v1";

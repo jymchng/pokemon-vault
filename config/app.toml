@@ -1,0 +1,105 @@
+# ============================================================================
+# Pokémon Vault — application configuration (G54)
+#
+# Single source of truth for ALL NON-SECRET tunables: ports, TTLs, rates,
+# URLs, limits, feature flags, pricing rates, providers, cron schedules and
+# retention. Secrets (DB credentials, JWT keys, Stripe, S3 keys, SMTP key,
+# Sentry/OTLP, API-docs token, Doppler token, DATABASE_SSL_CA) are NEVER
+# stored here — they live in environment variables with the POKE_VAULT_ prefix
+# (see .env.example) and are resolved by packages/config at runtime.
+#
+# Every key below can be overridden at runtime by its POKE_VAULT_* environment
+# variable (e.g. [server] port ← POKE_VAULT_API_PORT). See
+# packages/config/src/index.js for the override map and validation rules.
+# ============================================================================
+
+[app]
+# Development default; NODE_ENV is the Node/Next/Nest standard variable and
+# intentionally stays unprefixed (framework contract).
+nodeEnv = "development"
+# CORS / cookie origin allow-list (comma-separated when overridden by env).
+webOrigin = ["http://localhost:3000"]
+
+[server]
+# API HTTP port (overridable via POKE_VAULT_API_PORT).
+port = 3001
+# Storefront port used by the dev environment (POKE_VAULT_WEB_PORT).
+webPort = 3000
+
+[auth]
+# Access token TTL (seconds, default 900 = 15 min).
+accessTokenTtlSeconds = 900
+# Refresh token / session TTL (seconds, default 2592000 = 30 days).
+refreshTokenTtlSeconds = 2592000
+# Email verification token TTL (seconds, default 86400 = 24 h).
+verifyEmailTtlSeconds = 86400
+# Password reset token TTL (seconds, default 3600 = 1 h).
+passwordResetTtlSeconds = 3600
+
+[security]
+# Brute-force protection: max failed logins per IP per window (POKE_VAULT_LOGIN_RATE_LIMIT).
+loginRateLimit = 10
+# Sliding window (seconds) for the login rate limit (POKE_VAULT_LOGIN_RATE_WINDOW_SECONDS).
+loginRateWindowSeconds = 300
+
+[database]
+# TLS mode: disable (local dev) | require | verify-full (POKE_VAULT_DATABASE_SSLMODE).
+# Production defaults to require when unset; verify-full additionally checks
+# the CA in POKE_VAULT_DATABASE_SSL_CA (env-only).
+sslMode = "disable"
+
+[pricing]
+# Server-side checkout pricing (§27) — never accepted from the client.
+taxRatePercent = 0
+flatShippingUsd = 0
+freeShippingThresholdUsd = 0
+discountRatePercent = 0
+
+[featureFlags]
+# Runtime opt-out for high-risk/staged features (default ENABLED).
+packOpeningEnabled = true
+rewardsEnabled = true
+newCheckoutEnabled = true
+
+[cron]
+# 5-field cron expressions, validated at startup (POKE_VAULT_CRON_*).
+releaseReservations = "* * * * *"
+purgeAbandonedCarts = "0 3 * * *"
+expireRewards = "0 * * * *"
+purgeStaleSessions = "0 * * * *"
+purgeEmailLogs = "30 3 * * *"
+aggregateAnalytics = "15 2 * * *"
+dbMaintenance = "45 3 * * *"
+
+[retention]
+# Days before abandoned carts / email logs are purged (POKE_VAULT_*_TTL_DAYS).
+cartTtlDays = 30
+emailLogTtlDays = 90
+notificationRetentionDays = 730
+
+[media]
+# Object storage: memory (dev) | minio | s3 (POKE_VAULT_OBJECT_STORAGE).
+objectStorage = "memory"
+# S3-compatible endpoint + bucket (MinIO locally).
+s3Endpoint = "http://localhost:9000"
+s3Bucket = "pokemon-vault"
+
+[payments]
+# Payment provider: test (dev) | stripe (POKE_VAULT_PAYMENT_PROVIDER).
+provider = "test"
+
+[email]
+smtpHost = "localhost"
+smtpPort = 1025
+from = "Pokémon Vault <no-reply@pokemon-vault.dev>"
+
+[secrets]
+# Secrets provider: env (local/dev) | aws | doppler (POKE_VAULT_SECRETS_PROVIDER).
+provider = "env"
+awsRegion = "us-east-1"
+dopplerProject = ""
+dopplerConfig = "prd"
+
+[observability]
+# Prometheus metrics scrape port (POKE_VAULT_PROMETHEUS_PORT).
+prometheusPort = 9464

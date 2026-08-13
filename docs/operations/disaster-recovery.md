@@ -51,7 +51,7 @@ worker → verify readiness + smoke flows.
   versioning or cross-region replication; re-upload from the source of truth
   (product/card imagery pipelines) if needed.
 - **DR**: enable versioning + cross-region replication on the media bucket;
-  keep `S3_ENDPOINT` behind a DNS name so failover is a config change.
+  keep `POKE_VAULT_S3_ENDPOINT` behind a DNS name so failover is a config change.
 
 ## 4. Application failure (API / worker)
 
@@ -64,7 +64,7 @@ worker → verify readiness + smoke flows.
 ## 5. Regional failure
 
 1. **Promote DR**: run `terraform apply` in the DR region (state in the DR S3
-   bucket), promote the DB replica, repoint DNS (`WEB_ORIGIN`/`DATABASE_URL`
+   bucket), promote the DB replica, repoint DNS (`POKE_VAULT_WEB_ORIGIN`/`POKE_VAULT_DATABASE_URL`
    via Secrets Manager replica).
 2. **Verify**: `/health/ready` 200, `/metrics` scraped, checkout smoke test.
 3. **Record**: RTO measured; feed back into the quarterly rehearsal.
@@ -73,7 +73,7 @@ worker → verify readiness + smoke flows.
 
 - **Rotate immediately**: Stripe keys, JWT secrets, DB password, SMTP/email
   key, S3 keys (§56 rotation). Revoke the leaked credential first.
-- **Invalidate sessions**: bump `JWT_SECRET`/`JWT_REFRESH_SECRET` and clear
+- **Invalidate sessions**: bump `POKE_VAULT_JWT_SECRET`/`POKE_VAULT_JWT_REFRESH_SECRET` and clear
   `sessions` (forces re-login); review auth logs for the leaked window.
 - **DB**: rotate the `pv_app` password and redeploy; the least-privilege role
   bounds blast radius (§55).
@@ -97,7 +97,7 @@ worker → verify readiness + smoke flows.
 - [ ] Backups: latest verified restore exists (off-site)
 - [ ] Restore validated in test env before production cutover (§71)
 - [ ] Secrets available in the target region (Secrets Manager replica)
-- [ ] DNS/config repointed; `WEB_ORIGIN`/`DATABASE_URL` correct
+- [ ] DNS/config repointed; `POKE_VAULT_WEB_ORIGIN`/`POKE_VAULT_DATABASE_URL` correct
 - [ ] API + worker restarted, queues draining
 - [ ] Metrics + logs confirm recovery; Sentry clean of new errors
 - [ ] Postmortem drafted: timeline, impact, preventions

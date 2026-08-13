@@ -19,7 +19,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     assertSecureDbConfig(process.env);
     super({
       adapter: new PrismaPg({
-        connectionString: process.env.DATABASE_URL,
+        connectionString: process.env.POKE_VAULT_DATABASE_URL,
         ssl: buildDbSslOptions(process.env),
       }),
     });

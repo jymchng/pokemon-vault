@@ -7,7 +7,7 @@ import { PrismaClient, type ProductType } from "../src/generated/prisma/client.j
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg({ connectionString: process.env.POKE_VAULT_DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 const SETS = [

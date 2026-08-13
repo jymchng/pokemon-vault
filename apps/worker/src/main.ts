@@ -19,11 +19,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+const REDIS_URL = process.env.POKE_VAULT_REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+  adapter: new PrismaPg({ connectionString: process.env.POKE_VAULT_DATABASE_URL }),
 });
 
 const QUEUES = [

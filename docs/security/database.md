@@ -3,7 +3,7 @@
 Production posture for the Pokémon Vault PostgreSQL database — private
 networking, encrypted transport + storage, least privilege, no public port,
 and backups with PITR. Local development is unaffected (localhost Postgres,
-`DATABASE_SSLMODE` unset ⇒ `disable`).
+`POKE_VAULT_DATABASE_SSLMODE` unset ⇒ `disable`).
 
 ## 1. Private networking — no public port
 
@@ -17,13 +17,13 @@ and backups with PITR. Local development is unaffected (localhost Postgres,
 
 ## 2. Encrypted connections (TLS)
 
-- Production **requires** TLS: `DATABASE_SSLMODE=require` (default in prod).
-  Strict environments set `verify-full` + `DATABASE_SSL_CA` (RDS CA bundle).
+- Production **requires** TLS: `POKE_VAULT_DATABASE_SSLMODE=require` (default in prod).
+  Strict environments set `verify-full` + `POKE_VAULT_DATABASE_SSL_CA` (RDS CA bundle).
 - Enforced in code: `apps/api/src/security/db-security.ts`
   - `resolveDbSslMode()` — prod defaults to `require`; explicit env wins.
   - `buildDbSslOptions()` — fed into the Prisma `pg` adapter (`ssl` pool config).
   - `assertSecureDbConfig()` — fail-closed at startup in production
-    (missing `DATABASE_URL`, `sslmode=disable`, non-postgres protocol, or
+    (missing `POKE_VAULT_DATABASE_URL`, `sslmode=disable`, non-postgres protocol, or
     credential-less URL all abort boot).
 - Local dev: no TLS to `localhost:5432`; nothing to configure.
 
@@ -42,14 +42,14 @@ and backups with PITR. Local development is unaffected (localhost Postgres,
 - Migrations run as the schema owner/admin role, never as the app role.
 - Provisioning SQL: `infrastructure/db/roles.sql` (idempotent, with the
   public-schema `REVOKE CREATE` hardening).
-- `assertSecureDbConfig()` also rejects production `DATABASE_URL`s without
+- `assertSecureDbConfig()` also rejects production `POKE_VAULT_DATABASE_URL`s without
   credentials, so a superuser default is not silently used.
 
 ## 5. Backups + PITR
 
 - **Daily encrypted dumps**: `infrastructure/db/backup.sh` — `pg_dump`
   custom-format → age/gpg encryption → retention pruning (default 14 days).
-  Never logs credentials; `DATABASE_URL` comes from env/`.pgpass`, not argv.
+  Never logs credentials; `POKE_VAULT_DATABASE_URL` comes from env/`.pgpass`, not argv.
 - **True PITR**: managed RDS/Aurora automated backups (retention ≥ 30 days)
   with WAL archiving restore the database to any second within the window.
   Alternative self-managed options: Barman or pgBackRest with WAL shipping.

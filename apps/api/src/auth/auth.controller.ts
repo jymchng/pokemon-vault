@@ -51,7 +51,7 @@ export class AuthController {
   }
 
   private get allowedOrigin(): string | undefined {
-    return process.env.WEB_ORIGIN || undefined;
+    return process.env.POKE_VAULT_WEB_ORIGIN || undefined;
   }
 
   /**

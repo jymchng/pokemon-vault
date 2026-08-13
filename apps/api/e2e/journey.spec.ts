@@ -6,7 +6,7 @@ import { test, expect, APIRequestContext } from "@playwright/test";
  * Runs against the disposable test DB via the real HTTP API.
  */
 
-const API = process.env.E2E_API_URL || "http://localhost:3001";
+const API = process.env.POKE_VAULT_E2E_API_URL || "http://localhost:3001";
 const UNIQUE = Date.now();
 const EMAIL = `e2e-${UNIQUE}@example.com`;
 const PASSWORD = "Str0ng!Passw0rd";

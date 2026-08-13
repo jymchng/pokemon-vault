@@ -14,7 +14,7 @@ import { activityEvents, platformPulls } from "../src/lib/data/activity";
 import { rewardTiers, leaderboardEntries, waysToWin } from "../src/lib/data/rewards";
 import { addresses, shipments } from "../src/lib/data/shipping";
 
-const dbPath = process.env.DATABASE_URL?.replace("file:", "") ?? "dev.db";
+const dbPath = process.env.POKE_VAULT_DATABASE_URL?.replace("file:", "") ?? "dev.db";
 const adapter = new PrismaBetterSqlite3({
   url: path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath),
 });

@@ -59,7 +59,7 @@ cd infrastructure/terraform/global/state && terraform apply
 # per environment
 cd infrastructure/terraform/environments/<env>
 cp terraform.tfvars.example terraform.tfvars   # fill real values
-TF_VAR_app_secrets='{"JWT_SECRET":"...","STRIPE_SECRET_KEY":"...","SENTRY_DSN":"..."}' \
+TF_VAR_app_secrets='{"POKE_VAULT_POKE_VAULT_JWT_SECRET":"...","POKE_VAULT_POKE_VAULT_STRIPE_SECRET_KEY":"...","POKE_VAULT_POKE_VAULT_SENTRY_DSN":"..."}' \
   terraform init && terraform plan && terraform apply
 ```
 

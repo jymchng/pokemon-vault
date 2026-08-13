@@ -6,7 +6,7 @@ import { CorrelationService } from "../common/correlation.service";
 
 /** Build an ioredis connection from REDIS_URL (default redis://localhost:6379). */
 export function buildRedisConnection(): IORedis {
-  const url = process.env.REDIS_URL || "redis://localhost:6379";
+  const url = process.env.POKE_VAULT_REDIS_URL || "redis://localhost:6379";
   return new IORedis(url, { maxRetriesPerRequest: null });
 }
 

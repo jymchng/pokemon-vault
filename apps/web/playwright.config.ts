@@ -14,7 +14,7 @@ export default defineConfig({
   workers: 1, // sequential — the journey depends on prior state
   retries: 0,
   use: {
-    baseURL: process.env.E2E_WEB_URL || "http://localhost:3000",
+    baseURL: process.env.POKE_VAULT_E2E_WEB_URL || "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },

@@ -9,7 +9,7 @@ secrets, dependency hygiene, and abuse controls.
 |---|---|
 | Transport | HTTPS everywhere; prod DB connections encrypted (sslmode require/verify-full) |
 | Headers | Helmet: CSP + HSTS (prod), X-Content-Type-Options: nosniff, X-Frame-Options, Referrer-Policy; X-Powered-By off |
-| CORS | Restricted to `WEB_ORIGIN` allow-list (wildcard rejected) |
+| CORS | Restricted to `POKE_VAULT_WEB_ORIGIN` allow-list (wildcard rejected) |
 | Rate limiting | Redis-backed global 60 req/min/IP + per-endpoint overrides (login/register 5, password-reset 3, checkout/payment/pack-open 10) → 429 |
 | Abuse controls | Sliding-window abuse counters (login per-IP, pack-opening per-user) with extension points (§90) |
 | Auth | Argon2id password hashing; short-lived JWT access + rotating revocable refresh tokens; HTTP-only Secure SameSite=Lax cookies; per-request CSRF origin assertion |

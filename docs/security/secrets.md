@@ -10,7 +10,7 @@ container images, never in logs.**
 |---|---|---|
 | Local dev | `.env` (repo root) | `cp .env.example .env`, fill in values |
 | CI | GitHub Actions secrets | injected into job env |
-| Staging/Prod | AWS Secrets Manager **or** Doppler | resolved at startup by `SECRETS_PROVIDER` |
+| Staging/Prod | AWS Secrets Manager **or** Doppler | resolved at startup by `POKE_VAULT_SECRETS_PROVIDER` |
 
 `.env` is ignored by git (`.gitignore`: `.env*`, `!.env.example`) and `pnpm
 env:guard` fails CI if a `.env` is ever tracked or a live secret pattern
@@ -19,13 +19,13 @@ appears in a tracked file.
 ## 2. Provider abstraction
 
 `apps/api/src/security/secrets.ts` exposes a single `SecretProvider` interface
-selected by `SECRETS_PROVIDER`:
+selected by `POKE_VAULT_SECRETS_PROVIDER`:
 
 | Provider | When | Resolution |
 |---|---|---|
 | `env` (default) | local/dev/CI | `process.env[name]` |
-| `doppler` | prod (Doppler) | `GET api.doppler.com/v3/configs/config/secrets/download?format=json` with `Bearer DOPPLER_TOKEN`, fetched once + cached |
-| `aws` | prod (AWS Secrets Manager) | `GetSecretValue` on `SECRETS_ARN` (region `AWS_REGION`), parses the JSON `SecretString`, cached |
+| `doppler` | prod (Doppler) | `GET api.doppler.com/v3/configs/config/secrets/download?format=json` with `Bearer POKE_VAULT_DOPPLER_TOKEN`, fetched once + cached |
+| `aws` | prod (AWS Secrets Manager) | `GetSecretValue` on `POKE_VAULT_SECRETS_ARN` (region `POKE_VAULT_AWS_REGION`), parses the JSON `SecretString`, cached |
 
 - `getRequiredSecret(provider, name)` fails startup with **the variable name
   only** — never the value.
@@ -38,24 +38,24 @@ selected by `SECRETS_PROVIDER`:
 
   ```json
   {
-    "DATABASE_URL": "postgres://pv_app:...@db.internal:5432/pokemon_vault",
-    "JWT_SECRET": "...",
-    "JWT_REFRESH_SECRET": "...",
-    "STRIPE_SECRET_KEY": "...",
-    "STRIPE_WEBHOOK_SECRET": "..."
+    "POKE_VAULT_DATABASE_URL": "postgres://pv_app:...@db.internal:5432/pokemon_vault",
+    "POKE_VAULT_JWT_SECRET": "...",
+    "POKE_VAULT_JWT_REFRESH_SECRET": "...",
+    "POKE_VAULT_STRIPE_SECRET_KEY": "...",
+    "POKE_VAULT_STRIPE_WEBHOOK_SECRET": "..."
   }
   ```
 
-- `SECRETS_PROVIDER=aws`, `SECRETS_ARN=arn:aws:secretsmanager:...`, `AWS_REGION=...`.
+- `POKE_VAULT_SECRETS_PROVIDER=aws`, `POKE_VAULT_SECRETS_ARN=arn:aws:secretsmanager:...`, `POKE_VAULT_AWS_REGION=...`.
 - Access via IAM role (ECS task role / K8s IRSA) — **no long-lived access keys
   in the environment**.
 - Enable **automatic rotation** (Lambda) for database credentials and Stripe keys.
-- The `DATABASE_URL` returned uses the least-privilege `pv_app` role (§55).
+- The `POKE_VAULT_DATABASE_URL` returned uses the least-privilege `pv_app` role (§55).
 
 ### Doppler (prod)
 
-- `SECRETS_PROVIDER=doppler`, `DOPPLER_TOKEN=dp.pt.<service-token>`,
-  optional `DOPPLER_PROJECT` / `DOPPLER_CONFIG` (default config `prd`).
+- `POKE_VAULT_SECRETS_PROVIDER=doppler`, `POKE_VAULT_DOPPLER_TOKEN=dp.pt.<service-token>`,
+  optional `POKE_VAULT_DOPPLER_PROJECT` / `POKE_VAULT_DOPPLER_CONFIG` (default config `prd`).
 - Use a **service token scoped to one project/config** with least access.
 
 ## 3. Hard rules
@@ -69,14 +69,14 @@ selected by `SECRETS_PROVIDER`:
    connection strings; `assertSecureDbConfig()` errors name the variable only;
    error envelopes (`{error:{code,message}}`, §50) never echo request bodies.
 4. **Rotate on any leak** — revoke the credential, rotate via the provider,
-   update `SECRETS_ARN`/Doppler config.
+   update `POKE_VAULT_SECRETS_ARN`/Doppler config.
 
 ## 4. Variables
 
-`NODE_ENV`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`,
-`WEB_ORIGIN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, S3 keys,
-`EMAIL_API_KEY`, `SENTRY_DSN`, `DATABASE_SSLMODE`, `SECRETS_PROVIDER`,
-`SECRETS_ARN`, `AWS_REGION`, `DOPPLER_TOKEN` — all documented in
+`NODE_ENV`, `POKE_VAULT_DATABASE_URL`, `POKE_VAULT_REDIS_URL`, `POKE_VAULT_JWT_SECRET`, `POKE_VAULT_JWT_REFRESH_SECRET`,
+`POKE_VAULT_WEB_ORIGIN`, `POKE_VAULT_STRIPE_SECRET_KEY`, `POKE_VAULT_STRIPE_WEBHOOK_SECRET`, S3 keys,
+`POKE_VAULT_EMAIL_API_KEY`, `POKE_VAULT_SENTRY_DSN`, `POKE_VAULT_DATABASE_SSLMODE`, `POKE_VAULT_SECRETS_PROVIDER`,
+`POKE_VAULT_SECRETS_ARN`, `POKE_VAULT_AWS_REGION`, `POKE_VAULT_DOPPLER_TOKEN` — all documented in
 `.env.example` with `openssl rand -hex 64` guidance for JWT secrets.
 
 ## 5. Verified by

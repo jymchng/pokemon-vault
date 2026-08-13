@@ -1,11 +1,11 @@
 /**
  * Secrets management (§56): environment variables locally, AWS Secrets Manager
  * or Doppler in production. Secrets are resolved through a single provider
- * abstraction selected by SECRETS_PROVIDER:
+ * abstraction selected by POKE_VAULT_SECRETS_PROVIDER:
  *
  *   - "env"     (default, local/dev)  — plain process.env
- *   - "doppler" — Doppler API v3 (Bearer DOPPLER_TOKEN), fetched + cached
- *   - "aws"     — AWS Secrets Manager (GetSecretValue on SECRETS_ARN), cached
+ *   - "doppler" — Doppler API v3 (Bearer POKE_VAULT_DOPPLER_TOKEN), fetched + cached
+ *   - "aws"     — AWS Secrets Manager (GetSecretValue on POKE_VAULT_SECRETS_ARN), cached
  *
  * Hard rules: secrets never live in git, container images, or logs. Connection
  * strings are masked before logging (see maskConnectionString). Missing
@@ -86,7 +86,7 @@ export interface AwsSecretsClient {
 }
 
 /**
- * AWS Secrets Manager provider: reads the JSON SecretString of SECRETS_ARN once
+ * AWS Secrets Manager provider: reads the JSON SecretString of POKE_VAULT_SECRETS_ARN once
  * per process and caches the name→value map. The SDK is lazily imported so the
  * package is only required in production deployments that actually use it.
  */
@@ -109,7 +109,7 @@ export class AwsSecretsManagerProvider implements SecretProvider {
       mod = await import("@aws-sdk/client-secrets-manager");
     } catch {
       throw new Error(
-        "SECRETS_PROVIDER=aws requires @aws-sdk/client-secrets-manager — run " +
+        "POKE_VAULT_SECRETS_PROVIDER=aws requires @aws-sdk/client-secrets-manager — run " +
           "`pnpm --filter @pokemon-vault/api add @aws-sdk/client-secrets-manager`",
       );
     }
@@ -144,29 +144,29 @@ export class AwsSecretsManagerProvider implements SecretProvider {
 
 export type SecretsProviderName = "env" | "aws" | "doppler";
 
-/** Select the active provider from SECRETS_PROVIDER (default "env"). */
+/** Select the active provider from POKE_VAULT_SECRETS_PROVIDER (default "env"). */
 export function getSecretProvider(env: NodeJS.ProcessEnv = process.env): SecretProvider {
-  const provider = (env.SECRETS_PROVIDER || "env").trim().toLowerCase();
+  const provider = (env.POKE_VAULT_SECRETS_PROVIDER || "env").trim().toLowerCase();
   switch (provider) {
     case "env":
       return new EnvSecretProvider(env);
     case "doppler": {
-      const token = env.DOPPLER_TOKEN;
-      if (!token) throw new Error("SECRETS_PROVIDER=doppler requires DOPPLER_TOKEN");
-      return new DopplerSecretProvider({ token, project: env.DOPPLER_PROJECT, config: env.DOPPLER_CONFIG });
+      const token = env.POKE_VAULT_DOPPLER_TOKEN;
+      if (!token) throw new Error("POKE_VAULT_SECRETS_PROVIDER=doppler requires POKE_VAULT_DOPPLER_TOKEN");
+      return new DopplerSecretProvider({ token, project: env.POKE_VAULT_DOPPLER_PROJECT, config: env.POKE_VAULT_DOPPLER_CONFIG });
     }
     case "aws":
     case "aws-sm":
     case "awssecretsmanager": {
-      const arn = env.SECRETS_ARN;
-      const region = env.AWS_REGION || env.AWS_DEFAULT_REGION;
+      const arn = env.POKE_VAULT_SECRETS_ARN;
+      const region = env.POKE_VAULT_AWS_REGION || env.POKE_VAULT_AWS_DEFAULT_REGION;
       if (!arn || !region)
-        throw new Error("SECRETS_PROVIDER=aws requires SECRETS_ARN and AWS_REGION");
+        throw new Error("POKE_VAULT_SECRETS_PROVIDER=aws requires POKE_VAULT_SECRETS_ARN and POKE_VAULT_AWS_REGION");
       return new AwsSecretsManagerProvider({ arn, region });
     }
     default:
       throw new Error(
-        `Unknown SECRETS_PROVIDER '${provider}' (expected env | aws | doppler)`,
+        `Unknown POKE_VAULT_SECRETS_PROVIDER '${provider}' (expected env | aws | doppler)`,
       );
   }
 }

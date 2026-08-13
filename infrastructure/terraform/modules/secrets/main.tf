@@ -37,7 +37,7 @@ resource "aws_secretsmanager_secret" "redis" {
 resource "aws_secretsmanager_secret_version" "redis" {
   secret_id = aws_secretsmanager_secret.redis.id
   secret_string = jsonencode({
-    REDIS_URL = "rediss://${var.redis_endpoint}:${var.redis_port}"
+    POKE_VAULT_REDIS_URL = "rediss://${var.redis_endpoint}:${var.redis_port}"
   })
 }
 

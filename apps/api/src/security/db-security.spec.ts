@@ -8,7 +8,7 @@ import {
 const DEV_ENV = { NODE_ENV: "development" } as NodeJS.ProcessEnv;
 const PROD_ENV = {
   NODE_ENV: "production",
-  DATABASE_URL: "postgres://pv_app:pw@db.internal:5432/pokemon_vault",
+  POKE_VAULT_DATABASE_URL: "postgres://pv_app:pw@db.internal:5432/pokemon_vault",
 } as NodeJS.ProcessEnv;
 
 describe("db security (§55)", () => {
@@ -18,12 +18,12 @@ describe("db security (§55)", () => {
       expect(resolveDbSslMode(PROD_ENV)).toBe("require");
     });
 
-    it("honors explicit DATABASE_SSLMODE and rejects invalid values", () => {
-      expect(resolveDbSslMode({ NODE_ENV: "production", DATABASE_SSLMODE: "verify-full" })).toBe(
+    it("honors explicit POKE_VAULT_DATABASE_SSLMODE and rejects invalid values", () => {
+      expect(resolveDbSslMode({ NODE_ENV: "production", POKE_VAULT_DATABASE_SSLMODE: "verify-full" })).toBe(
         "verify-full",
       );
-      expect(() => resolveDbSslMode({ DATABASE_SSLMODE: "bogus" })).toThrow(
-        "Invalid DATABASE_SSLMODE",
+      expect(() => resolveDbSslMode({ POKE_VAULT_DATABASE_SSLMODE: "bogus" })).toThrow(
+        "Invalid POKE_VAULT_DATABASE_SSLMODE",
       );
     });
   });
@@ -35,8 +35,8 @@ describe("db security (§55)", () => {
       expect(
         buildDbSslOptions({
           NODE_ENV: "production",
-          DATABASE_SSLMODE: "verify-full",
-          DATABASE_SSL_CA: "CERT",
+          POKE_VAULT_DATABASE_SSLMODE: "verify-full",
+          POKE_VAULT_DATABASE_SSL_CA: "CERT",
         }),
       ).toEqual({ rejectUnauthorized: true, ca: "CERT" });
     });
@@ -47,10 +47,10 @@ describe("db security (§55)", () => {
       expect(() => assertSecureDbConfig(DEV_ENV)).not.toThrow();
     });
 
-    it("fails closed in production without DATABASE_URL or without TLS", () => {
-      expect(() => assertSecureDbConfig({ NODE_ENV: "production" })).toThrow("DATABASE_URL");
+    it("fails closed in production without POKE_VAULT_DATABASE_URL or without TLS", () => {
+      expect(() => assertSecureDbConfig({ NODE_ENV: "production" })).toThrow("POKE_VAULT_DATABASE_URL");
       expect(() =>
-        assertSecureDbConfig({ ...PROD_ENV, DATABASE_SSLMODE: "disable" }),
+        assertSecureDbConfig({ ...PROD_ENV, POKE_VAULT_DATABASE_SSLMODE: "disable" }),
       ).toThrow("encrypted DB connections");
     });
 
@@ -60,12 +60,12 @@ describe("db security (§55)", () => {
 
     it("rejects non-postgres protocols and credential-less URLs in prod", () => {
       expect(() =>
-        assertSecureDbConfig({ ...PROD_ENV, DATABASE_URL: "mysql://u:p@h/db" }),
+        assertSecureDbConfig({ ...PROD_ENV, POKE_VAULT_DATABASE_URL: "mysql://u:p@h/db" }),
       ).toThrow("postgres");
       expect(() =>
         assertSecureDbConfig({
           ...PROD_ENV,
-          DATABASE_URL: "postgres://db.internal:5432/pokemon_vault",
+          POKE_VAULT_DATABASE_URL: "postgres://db.internal:5432/pokemon_vault",
         }),
       ).toThrow("credentials");
     });

@@ -25,13 +25,13 @@ const SSL_MODES: readonly DbSslMode[] = ["disable", "require", "verify-full"];
  * the server certificate against DATABASE_SSL_CA.
  */
 export function resolveDbSslMode(env: NodeJS.ProcessEnv = process.env): DbSslMode {
-  const explicit = env.DATABASE_SSLMODE;
+  const explicit = env.POKE_VAULT_DATABASE_SSLMODE;
   const mode = (
     explicit ?? (env.NODE_ENV === "production" ? "require" : "disable")
   ).toLowerCase();
   if (!(SSL_MODES as string[]).includes(mode)) {
     throw new Error(
-      `Invalid DATABASE_SSLMODE '${mode}' (expected disable | require | verify-full)`,
+      `Invalid POKE_VAULT_DATABASE_SSLMODE '${mode}' (expected disable | require | verify-full)`,
     );
   }
   return mode as DbSslMode;
@@ -45,7 +45,7 @@ export function buildDbSslOptions(
   if (mode === "disable") return undefined;
   return {
     rejectUnauthorized: mode === "verify-full",
-    ...(env.DATABASE_SSL_CA ? { ca: env.DATABASE_SSL_CA } : {}),
+    ...(env.POKE_VAULT_DATABASE_SSL_CA ? { ca: env.POKE_VAULT_DATABASE_SSL_CA } : {}),
   };
 }
 
@@ -56,29 +56,29 @@ export function buildDbSslOptions(
  */
 export function assertSecureDbConfig(env: NodeJS.ProcessEnv = process.env): void {
   if (env.NODE_ENV !== "production") return;
-  if (!env.DATABASE_URL) {
-    throw new Error("Production requires DATABASE_URL (resolved via SECRETS_PROVIDER)");
+  if (!env.POKE_VAULT_DATABASE_URL) {
+    throw new Error("Production requires POKE_VAULT_DATABASE_URL (resolved via POKE_VAULT_SECRETS_PROVIDER)");
   }
   const mode = resolveDbSslMode(env);
   if (mode === "disable") {
     throw new Error(
-      "Production requires encrypted DB connections: set DATABASE_SSLMODE=require (or verify-full)",
+      "Production requires encrypted DB connections: set POKE_VAULT_DATABASE_SSLMODE=require (or verify-full)",
     );
   }
   try {
-    const url = new URL(env.DATABASE_URL);
+    const url = new URL(env.POKE_VAULT_DATABASE_URL);
     if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
-      throw new Error("DATABASE_URL must use the postgres:// protocol");
+      throw new Error("POKE_VAULT_DATABASE_URL must use the postgres:// protocol");
     }
-    if (!url.hostname) throw new Error("DATABASE_URL has no host");
+    if (!url.hostname) throw new Error("POKE_VAULT_DATABASE_URL has no host");
     if (url.password === undefined || url.password === "") {
       // Allowed when using .pgpass/IAM auth, but only in non-prod posture;
       // prod URLs should carry least-privilege credentials explicitly.
-      throw new Error("DATABASE_URL is missing credentials (least-privilege role required)");
+      throw new Error("POKE_VAULT_DATABASE_URL is missing credentials (least-privilege role required)");
     }
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("Invalid URL")) {
-      throw new Error("DATABASE_URL is not a valid connection string");
+      throw new Error("POKE_VAULT_DATABASE_URL is not a valid connection string");
     }
     throw err;
   }

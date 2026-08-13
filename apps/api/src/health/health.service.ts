@@ -39,7 +39,7 @@ export class HealthService implements OnModuleDestroy {
   }
 
   private buildRedisClient(): IORedis {
-    return new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+    return new IORedis(process.env.POKE_VAULT_REDIS_URL || "redis://localhost:6379", {
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
       lazyConnect: true,

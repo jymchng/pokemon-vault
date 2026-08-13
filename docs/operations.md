@@ -41,13 +41,13 @@ analytics, and VACUUM ANALYZE hot tables. Logs are structured JSON.
 
 ## Secrets & env
 
-`SECRETS_PROVIDER` (env | doppler | aws); production resolves secrets from the
+`POKE_VAULT_SECRETS_PROVIDER` (env | doppler | aws); production resolves secrets from the
 provider; `guard-env.sh` blocks `.env`/live secrets from git. Rotate
 immediately on any suspected compromise.
 
 ## Support procedures
 
-- Unknown 5xx → check Sentry (`SENTRY_DSN`), structured logs with
+- Unknown 5xx → check Sentry (`POKE_VAULT_SENTRY_DSN`), structured logs with
   `request_id`, Prometheus dashboards.
 - DB slowness → check `db_query_duration_seconds`, VACUUM ANALYZE job, slow-query
   analysis (§95).

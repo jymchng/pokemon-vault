@@ -129,9 +129,9 @@ resource "aws_cloudwatch_log_group" "worker" {
 # ── Task definitions ────────────────────────────────────────────────────────
 locals {
   common_secrets = [
-    { name = "DATABASE_URL", valueFrom = var.db_secret_arn },
-    { name = "REDIS_URL", valueFrom = var.redis_secret_arn },
-    { name = "APP_SECRETS", valueFrom = var.app_secret_arn },
+    { name = "POKE_VAULT_DATABASE_URL", valueFrom = var.db_secret_arn },
+    { name = "POKE_VAULT_REDIS_URL", valueFrom = var.redis_secret_arn },
+    { name = "POKE_VAULT_APP_SECRETS", valueFrom = var.app_secret_arn },
   ]
 }
 
@@ -151,9 +151,9 @@ resource "aws_ecs_task_definition" "api" {
     portMappings = [{ containerPort = var.api_port, protocol = "tcp" }]
     environment = [
       { name = "NODE_ENV", value = "production" },
-      { name = "WEB_ORIGIN", value = var.web_origin },
-      { name = "SECRETS_PROVIDER", value = "aws" },
-      { name = "AWS_REGION", value = data.aws_region.current.name },
+      { name = "POKE_VAULT_WEB_ORIGIN", value = var.web_origin },
+      { name = "POKE_VAULT_SECRETS_PROVIDER", value = "aws" },
+      { name = "POKE_VAULT_AWS_REGION", value = data.aws_region.current.name },
     ]
     secrets = local.common_secrets
     logConfiguration = {
@@ -188,8 +188,8 @@ resource "aws_ecs_task_definition" "worker" {
     image = var.image_worker
     environment = [
       { name = "NODE_ENV", value = "production" },
-      { name = "SECRETS_PROVIDER", value = "aws" },
-      { name = "AWS_REGION", value = data.aws_region.current.name },
+      { name = "POKE_VAULT_SECRETS_PROVIDER", value = "aws" },
+      { name = "POKE_VAULT_AWS_REGION", value = data.aws_region.current.name },
     ]
     secrets = local.common_secrets
     logConfiguration = {

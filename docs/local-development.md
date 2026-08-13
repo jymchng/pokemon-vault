@@ -64,8 +64,8 @@ checks wired to `/api/v1/health/ready`.
 
 ## Environment
 
-`.env.example` documents every variable (NODE_ENV, DATABASE_URL, REDIS_URL, JWT
-secrets, WEB_ORIGIN, Stripe/S3/email/Sentry, feature flags, cron schedules,
+`.env.example` documents every variable (NODE_ENV, POKE_VAULT_DATABASE_URL, POKE_VAULT_REDIS_URL, JWT
+secrets, POKE_VAULT_WEB_ORIGIN, Stripe/S3/email/Sentry, feature flags, cron schedules,
 retention TTLs). `pnpm env:guard` verifies no `.env` or live secrets are
 tracked by git.
 

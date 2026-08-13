@@ -6,14 +6,14 @@ import { ConfigModule } from "./config.module";
 import { FeatureFlagService } from "./feature-flag.service";
 import { FeatureDisabledError } from "../common/app-error";
 
-/** Minimal complete env for ConfigModule's loadConfig(). */
+/** Minimal complete env for ConfigModule's loadConfig() (G54: prefixed vars). */
 const FULL_ENV: Record<string, string> = {
   NODE_ENV: "development",
-  DATABASE_URL: "postgresql://u:p@localhost:5432/db",
-  REDIS_URL: "redis://localhost:6379",
-  JWT_SECRET: "0123456789abcdef0123456789abcdef",
-  JWT_REFRESH_SECRET: "0123456789abcdef0123456789abcdef",
-  WEB_ORIGIN: "http://localhost:3000",
+  POKE_VAULT_DATABASE_URL: "postgresql://u:p@localhost:5432/db?schema=public",
+  POKE_VAULT_REDIS_URL: "redis://localhost:6379",
+  POKE_VAULT_JWT_SECRET: "0123456789abcdef0123456789abcdef",
+  POKE_VAULT_JWT_REFRESH_SECRET: "0123456789abcdef0123456789abcdef",
+  POKE_VAULT_WEB_ORIGIN: "http://localhost:3000",
 };
 
 function withEnv(env: Record<string, string>, fn: () => Promise<void>) {
@@ -24,7 +24,7 @@ function withEnv(env: Record<string, string>, fn: () => Promise<void>) {
   });
 }
 
-describe("config module (§106-108)", () => {
+describe("config module (§106-108, G54)", () => {
   it("provides validated config + feature flag service", async () => {
     await withEnv(FULL_ENV, async () => {
       const moduleRef = await Test.createTestingModule({
@@ -45,8 +45,10 @@ describe("config module (§106-108)", () => {
   });
 
   it("loadConfig fails fast on missing required vars (fail-fast §108)", () => {
-    expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
-    expect(() => loadConfig({ ...FULL_ENV, REDIS_URL: "" })).toThrow(/REDIS_URL/);
+    expect(() => loadConfig({})).toThrow(/POKE_VAULT_DATABASE_URL/);
+    expect(() =>
+      loadConfig({ ...FULL_ENV, POKE_VAULT_REDIS_URL: "" }),
+    ).toThrow(/POKE_VAULT_REDIS_URL/);
   });
 
   it("assertEnabled throws FEATURE_DISABLED (403) when a flag is off", async () => {

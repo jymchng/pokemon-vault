@@ -12,7 +12,7 @@ export default defineConfig({
   workers: 1, // sequential — the journey depends on prior state
   retries: 0,
   use: {
-    baseURL: process.env.E2E_API_URL || "http://localhost:3001",
+    baseURL: process.env.POKE_VAULT_E2E_API_URL || "http://localhost:3001",
     trace: "on-first-retry",
   },
   reporter: [["list"]],

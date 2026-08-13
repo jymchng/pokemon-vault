@@ -19,18 +19,51 @@ import {
   SessionInfo,
 } from "./auth.types";
 import { randomToken, sha256Hex, signJwt } from "./crypto";
+import { loadConfig } from "@pokemon-vault/config";
 
-const envInt = (name: string, fallback: number): number => {
-  const raw = process.env[name];
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
+/**
+ * Auth TTLs (seconds) — sourced from the centralized config (G54): values in
+ * config/app.toml [auth], overridable via POKE_VAULT_* env. Fall back to
+ * documented defaults if config is unavailable (never fail at import time).
+ */
+const AUTH_TTL = (() => {
+  let cfg: ReturnType<typeof loadConfig> | null = null;
+  try {
+    cfg = loadConfig(process.env);
+  } catch {
+    cfg = null;
+  }
+  return {
+    access: cfg?.auth.accessTokenTtlSeconds ?? 15 * 60, // 15 min
+    refresh: cfg?.auth.refreshTokenTtlSeconds ?? 30 * 24 * 60 * 60, // 30 days
+    session: cfg?.auth.refreshTokenTtlSeconds ?? 30 * 24 * 60 * 60, // 30 days
+    verifyEmail: cfg?.auth.verifyEmailTtlSeconds ?? 24 * 60 * 60, // 24 h
+    passwordReset: cfg?.auth.passwordResetTtlSeconds ?? 60 * 60, // 1 h
+  };
+})();
 
-export const ACCESS_TOKEN_TTL_SECONDS = envInt("ACCESS_TOKEN_TTL_SECONDS", 15 * 60); // 15 min
-export const REFRESH_TOKEN_TTL_SECONDS = envInt("REFRESH_TOKEN_TTL_SECONDS", 30 * 24 * 60 * 60); // 30 days
-export const SESSION_TTL_SECONDS = envInt("SESSION_TTL_SECONDS", 30 * 24 * 60 * 60); // 30 days
-export const VERIFY_EMAIL_TTL_SECONDS = envInt("VERIFY_EMAIL_TTL_SECONDS", 24 * 60 * 60); // 24 h
-export const PASSWORD_RESET_TTL_SECONDS = envInt("PASSWORD_RESET_TTL_SECONDS", 60 * 60); // 1 h
+/** Security limits from the centralized config (G54) — rate limiting. */
+const AUTH_TTL_CACHE = (() => {
+  let cfg: ReturnType<typeof loadConfig> | null = null;
+  try {
+    cfg = loadConfig(process.env);
+  } catch {
+    cfg = null;
+  }
+  return {
+    security: {
+      loginRateLimit: cfg?.security.loginRateLimit ?? 10,
+      loginRateWindowSeconds: cfg?.security.loginRateWindowSeconds ?? 300,
+    },
+  };
+})();
+
+/** Access token TTL (seconds) — consumed by the auth controller for cookies. */
+export const ACCESS_TOKEN_TTL_SECONDS = AUTH_TTL.access;
+export const REFRESH_TOKEN_TTL_SECONDS = AUTH_TTL.refresh;
+export const SESSION_TTL_SECONDS = AUTH_TTL.session;
+export const VERIFY_EMAIL_TTL_SECONDS = AUTH_TTL.verifyEmail;
+export const PASSWORD_RESET_TTL_SECONDS = AUTH_TTL.passwordReset;
 
 function toPublic(user: AuthUserRow): PublicUser {
   const { passwordHash: _ph, ...safe } = user;
@@ -46,17 +79,17 @@ export class AuthService {
   ) {}
 
   private get jwtSecret(): string {
-    const s = process.env.JWT_SECRET || process.env.JWT_REFRESH_SECRET;
+    const s = process.env.POKE_VAULT_JWT_SECRET || process.env.POKE_VAULT_JWT_REFRESH_SECRET;
     if (!s || s === "change-me") {
-      throw new Error("JWT_SECRET must be set to a strong value");
+      throw new Error("POKE_VAULT_JWT_SECRET must be set to a strong value");
     }
     return s;
   }
 
   private get refreshSecret(): string {
-    const s = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    const s = process.env.POKE_VAULT_JWT_REFRESH_SECRET || process.env.POKE_VAULT_JWT_SECRET;
     if (!s || s === "change-me") {
-      throw new Error("JWT_REFRESH_SECRET must be set to a strong value");
+      throw new Error("POKE_VAULT_JWT_REFRESH_SECRET must be set to a strong value");
     }
     return s;
   }
@@ -167,8 +200,10 @@ export class AuthService {
     if (meta.ip) {
       const blocked = await this.abuse.checkAndRecord({
         scope: "login", actorKey: meta.ip,
-        limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), // E2E raises this
-        windowSeconds: Number(process.env.LOGIN_RATE_WINDOW_SECONDS ?? 300),
+        // G54: rate limits come from the centralized config ([security],
+        // overridable via POKE_VAULT_LOGIN_RATE_LIMIT / _WINDOW_SECONDS).
+        limit: AUTH_TTL_CACHE.security.loginRateLimit,
+        windowSeconds: AUTH_TTL_CACHE.security.loginRateWindowSeconds,
       });
       if (blocked) throw new HttpException("Too many login attempts — try again later", HttpStatus.TOO_MANY_REQUESTS);
     }

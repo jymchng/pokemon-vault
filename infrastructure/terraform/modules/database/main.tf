@@ -61,7 +61,7 @@ resource "aws_secretsmanager_secret" "db" {
 resource "aws_secretsmanager_secret_version" "db" {
   secret_id = aws_secretsmanager_secret.db.id
   secret_string = jsonencode({
-    DATABASE_URL = "postgresql://${var.db_user}:${random_password.db.result}@${aws_db_instance.this.endpoint}/${var.db_name}?schema=public"
+    POKE_VAULT_DATABASE_URL = "postgresql://${var.db_user}:${random_password.db.result}@${aws_db_instance.this.endpoint}/${var.db_name}?schema=public"
   })
 }
 

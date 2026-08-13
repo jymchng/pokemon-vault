@@ -25,7 +25,7 @@ export const DEFAULT_RATE_TTL_MS = 60_000;
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const connection = new IORedis(
-          process.env.REDIS_URL || "redis://localhost:6379",
+          process.env.POKE_VAULT_REDIS_URL || "redis://localhost:6379",
           { maxRetriesPerRequest: null },
         );
         return {

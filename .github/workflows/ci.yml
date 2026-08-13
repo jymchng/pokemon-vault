@@ -60,8 +60,8 @@ jobs:
           --health-cmd "redis-cli ping" --health-interval 5s
           --health-timeout 3s --health-retries 10
     env:
-      DATABASE_URL: postgresql://pokemon:pokemon@localhost:5432/pokemon_vault?schema=public
-      REDIS_URL: redis://localhost:6379
+      POKE_VAULT_DATABASE_URL: postgresql://pokemon:pokemon@localhost:5432/pokemon_vault?schema=public
+      POKE_VAULT_REDIS_URL: redis://localhost:6379
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
           pnpm --filter @pokemon-vault/api db:generate
           pnpm --filter @pokemon-vault/api exec prisma migrate deploy
         env:
-          DATABASE_URL: postgresql://pokemon:pokemon@localhost:5432/pokemon_vault?schema=public
+          POKE_VAULT_DATABASE_URL: postgresql://pokemon:pokemon@localhost:5432/pokemon_vault?schema=public
       - name: Unit + integration tests (api)
         run: pnpm --filter @pokemon-vault/api test
       - name: Worker tests

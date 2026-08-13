@@ -51,7 +51,7 @@ deployment should re-verify each box before cutting over.
 ## Security
 
 - [x] Secrets removed from source (`guard-env.sh`; no `.env` tracked)
-- [x] CORS restricted (`WEB_ORIGIN` allow-list, no wildcard)
+- [x] CORS restricted (`POKE_VAULT_WEB_ORIGIN` allow-list, no wildcard)
 - [x] Rate limits configured (global + sensitive endpoints)
 - [x] Security headers enabled (Helmet CSP/HSTS/nosniff/Referrer-Policy)
 - [x] Input validation enabled (Zod on every controller)

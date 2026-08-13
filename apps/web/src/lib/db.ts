@@ -5,7 +5,7 @@ import path from "path";
 
 // SQLite adapter for Prisma 7 (runtime driver adapter pattern)
 // DATABASE_URL is file:./dev.db — resolve relative to project root (matches prisma.config.ts)
-const dbPath = process.env.DATABASE_URL?.replace("file:", "") ?? "dev.db";
+const dbPath = process.env.POKE_VAULT_DATABASE_URL?.replace("file:", "") ?? "dev.db";
 const adapter = new PrismaBetterSqlite3({
   url: path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath),
 });

@@ -27,6 +27,6 @@ waf_rate_limit    = 2000
 alerts_email      = "oncall@pokemon-vault.dev"
 
 # App secrets — supplied via TF_VAR_app_secrets JSON from the operator's
-# secret store (never committed): JWT_SECRET, JWT_REFRESH_SECRET,
-# STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, EMAIL_API_KEY, SENTRY_DSN.
-# app_secrets = { "JWT_SECRET" = "...", ... }
+# secret store (never committed): POKE_VAULT_JWT_SECRET, POKE_VAULT_JWT_REFRESH_SECRET,
+# POKE_VAULT_STRIPE_SECRET_KEY, POKE_VAULT_STRIPE_WEBHOOK_SECRET, POKE_VAULT_EMAIL_API_KEY, POKE_VAULT_SENTRY_DSN.
+# app_secrets = { "POKE_VAULT_JWT_SECRET" = "...", ... }

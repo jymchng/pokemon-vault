@@ -27,10 +27,10 @@ STATE_DIR="$ROOT/.dev-env"
 LOG_DIR="$STATE_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-API_PORT="${API_PORT:-3001}"
-WEB_PORT="${WEB_PORT:-3000}"
-DEV_DB="${DEV_DB_NAME:-pokemon_vault_dev}"
-ADMIN_PG_URL="${DEV_ENV_ADMIN_PG_URL:-postgresql://pokemon:pokemon@localhost:5432/postgres}"
+API_PORT="${POKE_VAULT_API_PORT:-3001}"
+WEB_PORT="${POKE_VAULT_WEB_PORT:-3000}"
+DEV_DB="${POKE_VAULT_DEV_DB_NAME:-pokemon_vault_dev}"
+ADMIN_PG_URL="${POKE_VAULT_DEV_ENV_ADMIN_PG_URL:-postgresql://pokemon:pokemon@localhost:5432/postgres}"
 DEV_DB_URL="postgresql://pokemon:pokemon@localhost:5432/${DEV_DB}?schema=public"
 WEB_URL="http://localhost:${WEB_PORT}"
 
@@ -127,8 +127,8 @@ build_all() {
   ( cd apps/worker && "${NODE22_BIN}" node_modules/typescript/bin/tsc -p tsconfig.json )
   (
     cd apps/web \
-      && NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}" \
-         NEXT_PUBLIC_MOCK_FALLBACK="${NEXT_PUBLIC_MOCK_FALLBACK:-true}" \
+      && POKE_VAULT_NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}" \
+         POKE_VAULT_NEXT_PUBLIC_MOCK_FALLBACK="${POKE_VAULT_NEXT_PUBLIC_MOCK_FALLBACK:-true}" \
          "${NODE22_BIN}" node_modules/next/dist/bin/next build
   )
   info "build complete"
@@ -145,8 +145,8 @@ port_busy() { ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${1}$"; }
 start_stack() {
   load_root_env
   export NODE_ENV=development
-  export DATABASE_URL="$DEV_DB_URL"
-  export REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
+  export POKE_VAULT_DATABASE_URL="$DEV_DB_URL"
+  export POKE_VAULT_REDIS_URL="${POKE_VAULT_REDIS_URL:-redis://localhost:6379}"
   export API_PORT WEB_PORT
 
   require_postgres
@@ -295,13 +295,13 @@ cmd_test() {
   info "E2E 1/2 — API journey spec (apps/api)..."
   (
     cd "$ROOT/apps/api" \
-      && E2E_API_URL="http://localhost:${API_PORT}" \
+      && POKE_VAULT_E2E_API_URL="http://localhost:${API_PORT}" \
          "${NODE22_BIN}" "$(pw_cli apps/api)" test --config=playwright.config.ts
   )
   info "E2E 2/2 — storefront browser journey (apps/web)..."
   (
     cd "$ROOT/apps/web" \
-      && E2E_WEB_URL="$WEB_URL" \
+      && POKE_VAULT_E2E_WEB_URL="$WEB_URL" \
          "${NODE22_BIN}" "$(pw_cli apps/web)" test --config=playwright.config.ts
   )
   info "E2E suite passed against the running dev environment"

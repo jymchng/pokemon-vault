@@ -19,7 +19,7 @@ import { FeatureFlagService } from "./feature-flag.service";
   providers: [
     {
       provide: APP_CONFIG,
-      useFactory: () => loadConfig(),
+      useFactory: () => loadConfig(process.env),
     },
     FeatureFlagService,
   ],

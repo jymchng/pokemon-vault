@@ -131,8 +131,8 @@ async function makeService(repo: FakeAuthRepository) {
 const META = { device: "unit-test", ip: "127.0.0.1", userAgent: "vitest" };
 
 beforeAll(() => {
-  process.env.JWT_SECRET = "test-secret-that-is-long-enough-1234567890";
-  process.env.JWT_REFRESH_SECRET = "test-refresh-secret-1234567890";
+  process.env.POKE_VAULT_JWT_SECRET = "test-secret-that-is-long-enough-1234567890";
+  process.env.POKE_VAULT_JWT_REFRESH_SECRET = "test-refresh-secret-1234567890";
 });
 
 it("auth: register creates user + session and returns no passwordHash", async () => {
@@ -245,11 +245,11 @@ it("auth: me returns current user + session info, no hash", async () => {
 });
 
 it("auth: signJwt round-trips and rejects tampered tokens", () => {
-  const token = signJwt({ sub: "u1", sessionId: "s1", type: "access" }, process.env.JWT_SECRET!, 300);
+  const token = signJwt({ sub: "u1", sessionId: "s1", type: "access" }, process.env.POKE_VAULT_JWT_SECRET!, 300);
   const [h, p, sig] = token.split(".");
   const tampered = `${h}.${p.slice(0, -2)}xx.${sig}`;
-  const decoded = verifyJwt(token, process.env.JWT_SECRET!);
+  const decoded = verifyJwt(token, process.env.POKE_VAULT_JWT_SECRET!);
   expect(decoded?.sub).toBe("u1");
-  expect(verifyJwt(tampered, process.env.JWT_SECRET!)).toBeNull();
+  expect(verifyJwt(tampered, process.env.POKE_VAULT_JWT_SECRET!)).toBeNull();
   expect(verifyJwt(token, "wrong-secret")).toBeNull();
 });

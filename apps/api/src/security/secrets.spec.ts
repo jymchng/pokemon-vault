@@ -69,16 +69,16 @@ describe("secrets (§56)", () => {
   describe("getSecretProvider", () => {
     it("defaults to env and rejects unknown providers", () => {
       expect(getSecretProvider({}).name).toBe("env");
-      expect(getSecretProvider({ SECRETS_PROVIDER: "env" }).name).toBe("env");
-      expect(() => getSecretProvider({ SECRETS_PROVIDER: "nope" })).toThrow("Unknown SECRETS_PROVIDER");
+      expect(getSecretProvider({ POKE_VAULT_SECRETS_PROVIDER: "env" }).name).toBe("env");
+      expect(() => getSecretProvider({ POKE_VAULT_SECRETS_PROVIDER: "nope" })).toThrow("Unknown POKE_VAULT_SECRETS_PROVIDER");
     });
 
     it("selects doppler only with a token, aws only with arn+region", () => {
-      expect(() => getSecretProvider({ SECRETS_PROVIDER: "doppler" })).toThrow("DOPPLER_TOKEN");
-      expect(getSecretProvider({ SECRETS_PROVIDER: "doppler", DOPPLER_TOKEN: "x" }).name).toBe("doppler");
-      expect(() => getSecretProvider({ SECRETS_PROVIDER: "aws" })).toThrow("SECRETS_ARN");
+      expect(() => getSecretProvider({ POKE_VAULT_SECRETS_PROVIDER: "doppler" })).toThrow("POKE_VAULT_DOPPLER_TOKEN");
+      expect(getSecretProvider({ POKE_VAULT_SECRETS_PROVIDER: "doppler", POKE_VAULT_DOPPLER_TOKEN: "x" }).name).toBe("doppler");
+      expect(() => getSecretProvider({ POKE_VAULT_SECRETS_PROVIDER: "aws" })).toThrow("POKE_VAULT_SECRETS_ARN");
       expect(
-        getSecretProvider({ SECRETS_PROVIDER: "aws", SECRETS_ARN: "a", AWS_REGION: "r" }).name,
+        getSecretProvider({ POKE_VAULT_SECRETS_PROVIDER: "aws", POKE_VAULT_SECRETS_ARN: "a", POKE_VAULT_AWS_REGION: "r" }).name,
       ).toBe("aws");
     });
   });

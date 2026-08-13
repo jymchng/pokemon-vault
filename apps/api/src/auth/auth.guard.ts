@@ -35,7 +35,7 @@ export class AuthGuard implements CanActivate {
     const token = bearer || cookies[ACCESS_COOKIE];
     if (!token) throw new UnauthorizedException("Missing access token");
 
-    const payload = verifyJwt<AccessTokenPayload>(token, process.env.JWT_SECRET || "");
+    const payload = verifyJwt<AccessTokenPayload>(token, process.env.POKE_VAULT_JWT_SECRET || "");
     if (!payload || payload.type !== "access") {
       throw new UnauthorizedException("Invalid access token");
     }

@@ -27,10 +27,10 @@ function rawBodyMiddleware(req: any, _res: any, next: () => void) {
     {
       provide: PAYMENT_PROVIDER,
       useFactory: () => {
-        const name = process.env.PAYMENT_PROVIDER || "test";
+        const name = process.env.POKE_VAULT_PAYMENT_PROVIDER || "test";
         if (name === "stripe") {
-          const secret = process.env.STRIPE_WEBHOOK_SECRET || "";
-          if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET must be set when PAYMENT_PROVIDER=stripe");
+          const secret = process.env.POKE_VAULT_STRIPE_WEBHOOK_SECRET || "";
+          if (!secret) throw new Error("POKE_VAULT_STRIPE_WEBHOOK_SECRET must be set when POKE_VAULT_PAYMENT_PROVIDER=stripe");
           return new StripePaymentProvider(secret);
         }
         return new TestPaymentProvider();

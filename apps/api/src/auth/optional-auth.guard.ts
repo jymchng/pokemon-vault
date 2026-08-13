@@ -27,7 +27,7 @@ export class OptionalAuthGuard implements CanActivate {
     const token = bearer || cookies[ACCESS_COOKIE];
     if (!token) return true; // guest — no user attached
 
-    const payload = verifyJwt<AccessTokenPayload>(token, process.env.JWT_SECRET || "");
+    const payload = verifyJwt<AccessTokenPayload>(token, process.env.POKE_VAULT_JWT_SECRET || "");
     if (payload && payload.type === "access") {
       req.user = { id: payload.sub, sessionId: payload.sessionId };
     }

@@ -32,19 +32,33 @@ export interface PricingConfig {
   discountRatePercent: number;
 }
 
-const envNum = (name: string, fallback: number): number => {
-  const raw = process.env[name];
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) && n >= 0 ? n : fallback;
-};
+import { loadConfig } from "@pokemon-vault/config";
+
+/**
+ * Pricing rates (G54) — sourced from the centralized config: values in
+ * config/app.toml [pricing], overridable via POKE_VAULT_* env. Fall back to
+ * documented dev defaults if config is unavailable (never fail at import).
+ */
+let _pricing: PricingConfig | null = null;
+function effectivePricing(): PricingConfig {
+  if (_pricing) return _pricing;
+  let cfg: ReturnType<typeof loadConfig> | null = null;
+  try {
+    cfg = loadConfig(process.env);
+  } catch {
+    cfg = null;
+  }
+  _pricing = {
+    taxRatePercent: cfg?.pricing.taxRatePercent ?? 0,
+    flatShippingUsd: cfg?.pricing.flatShippingUsd ?? 0,
+    freeShippingThresholdUsd: cfg?.pricing.freeShippingThresholdUsd ?? 0,
+    discountRatePercent: cfg?.pricing.discountRatePercent ?? 0,
+  };
+  return _pricing;
+}
 
 export function loadPricingConfig(): PricingConfig {
-  return {
-    taxRatePercent: envNum("TAX_RATE_PERCENT", 0),
-    flatShippingUsd: envNum("FLAT_SHIPPING_USD", 0),
-    freeShippingThresholdUsd: envNum("FREE_SHIPPING_THRESHOLD_USD", 0),
-    discountRatePercent: envNum("DISCOUNT_RATE_PERCENT", 0),
-  };
+  return { ...effectivePricing() };
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;

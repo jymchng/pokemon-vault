@@ -12,7 +12,7 @@ import { test, expect } from "@playwright/test";
  * ever served the data.
  */
 
-const WEB = process.env.E2E_WEB_URL || "http://localhost:3000";
+const WEB = process.env.POKE_VAULT_E2E_WEB_URL || "http://localhost:3000";
 
 async function addMewToCart(page: import("@playwright/test").Page) {
   await page.goto(`${WEB}/store`);
