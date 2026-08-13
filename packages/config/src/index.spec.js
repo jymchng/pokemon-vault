@@ -38,6 +38,10 @@ test("loadConfig reads non-secret defaults from config/app.toml", () => {
   assert.equal(cfg.secrets.provider, "env");
   assert.equal(cfg.observability.prometheusPort, 9464);
   assert.equal(cfg.auth.accessTokenTtlSeconds, 900);
+  assert.equal(cfg.passwordPolicy.minLength, 8);
+  assert.equal(cfg.passwordPolicy.maxLength, 128);
+  assert.equal(cfg.passwordPolicy.minCharacterClasses, 3);
+  assert.equal(cfg.passwordPolicy.minEntropyBits, 24);
   assert.equal(cfg.security.loginRateLimit, 10);
   assert.equal(cfg.security.globalRateLimit, 60);
   assert.equal(cfg.security.globalRateTtlMs, 60000);
@@ -56,6 +60,8 @@ test("POKE_VAULT_ env vars override toml values", () => {
     POKE_VAULT_FEATURE_REWARDS_ENABLED: "false",
     POKE_VAULT_CRON_PURGE_ABANDONED_CARTS: "0 2 * * *",
     POKE_VAULT_TAX_RATE_PERCENT: "8.5",
+    POKE_VAULT_PASSWORD_POLICY_MIN_LENGTH: "10",
+    POKE_VAULT_PASSWORD_POLICY_MIN_ENTROPY_BITS: "30",
   });
   assert.equal(cfg.port, 4001);
   assert.equal(cfg.webPort, 4000);
@@ -67,6 +73,8 @@ test("POKE_VAULT_ env vars override toml values", () => {
   assert.equal(cfg.featureFlags.rewardsEnabled, false);
   assert.equal(cfg.cron.purgeAbandonedCarts, "0 2 * * *");
   assert.equal(cfg.pricing.taxRatePercent, 8.5);
+  assert.equal(cfg.passwordPolicy.minLength, 10);
+  assert.equal(cfg.passwordPolicy.minEntropyBits, 30);
 });
 
 test("fail-fast: invalid env override type throws", () => {

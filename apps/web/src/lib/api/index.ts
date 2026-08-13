@@ -22,14 +22,27 @@ import type {
   Shipment,
 } from "@/lib/types";
 
+export interface ApiErrorDetail {
+  path: string;
+  message: string;
+}
+
 export class ApiError extends Error {
   status: number;
   code?: string;
-  constructor(message: string, status = 500, code?: string) {
+  /** Field-level validation issues from the backend (e.g. password policy). */
+  details?: ApiErrorDetail[];
+  constructor(
+    message: string,
+    status = 500,
+    code?: string,
+    details?: ApiErrorDetail[],
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -58,7 +71,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   const json = (await res.json().catch(() => ({}))) as {
     data?: unknown;
-    error?: { code?: string; message?: string };
+    error?: {
+      code?: string;
+      message?: string;
+      details?: { path: string; message: string }[];
+    };
   };
   if (!res.ok) {
     const code = json.error?.code;
@@ -66,7 +83,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       res.status === 401 || res.status === 403
         ? "Authentication required"
         : json.error?.message || `API ${res.status}`;
-    throw new ApiError(message, res.status, code);
+    throw new ApiError(message, res.status, code, json.error?.details);
   }
   if (json.data == null) throw new ApiError("API empty", 503);
   return json.data as T;
@@ -150,6 +167,19 @@ export async function apiMe(): Promise<{ user: AuthUser }> {
 
 export async function apiLogout(): Promise<void> {
   await post<unknown>("/auth/logout", {}).catch(() => undefined);
+}
+
+export interface PasswordPolicyDto {
+  minLength: number;
+  maxLength: number;
+  minCharacterClasses: number;
+  minEntropyBits: number;
+  requirements: { key: string; label: string }[];
+}
+
+/** Public: config-driven password requirements (no hardcoded labels in the UI). */
+export async function fetchPasswordPolicy(): Promise<PasswordPolicyDto> {
+  return get<PasswordPolicyDto>("/auth/password-policy");
 }
 
 /* ── Cards ─────────────────────────────────────────────────────────────── */

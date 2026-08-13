@@ -5,12 +5,39 @@
  * - Explicit, documented Argon2id parameters (OWASP-recommended range).
  * - Strength validation: length, character classes, common passwords,
  *   sequential/repeated patterns, entropy estimate.
+ *
+ * All TUNABLES (min/max length, required character classes, entropy floor)
+ * come from the centralized config (config/app.toml [passwordPolicy],
+ * overridable via POKE_VAULT_PASSWORD_POLICY_* env) — no hardcoded limits or
+ * user-facing messages in code. Rule definitions (common words, sequential
+ * patterns) stay here; their user-facing labels are generated from config.
  */
 import * as argon2 from "argon2";
 import { z } from "zod";
+import { loadConfig } from "@pokemon-vault/config";
 
-export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 128;
+export interface PasswordPolicy {
+  minLength: number;
+  maxLength: number;
+  minCharacterClasses: number;
+  minEntropyBits: number;
+}
+
+/** Resolve the active policy from the centralized config (safe defaults). */
+export function getPasswordPolicy(): PasswordPolicy {
+  let cfg: ReturnType<typeof loadConfig> | null = null;
+  try {
+    cfg = loadConfig(process.env);
+  } catch {
+    cfg = null;
+  }
+  return {
+    minLength: cfg?.passwordPolicy.minLength ?? 8,
+    maxLength: cfg?.passwordPolicy.maxLength ?? 128,
+    minCharacterClasses: cfg?.passwordPolicy.minCharacterClasses ?? 3,
+    minEntropyBits: cfg?.passwordPolicy.minEntropyBits ?? 24,
+  };
+}
 
 /** Argon2id pinned explicitly (the library default is argon2id; we make it
  *  contractual and tune to OWASP-2017+ guidance: m=64 MiB, t=3, p=4). */
@@ -71,18 +98,21 @@ export interface PasswordStrengthResult {
   errors: string[];
 }
 
-export function evaluatePasswordStrength(password: string): PasswordStrengthResult {
+export function evaluatePasswordStrength(
+  password: string,
+  policy: PasswordPolicy = getPasswordPolicy(),
+): PasswordStrengthResult {
   const errors: string[] = [];
   if (typeof password !== "string" || password.length === 0) {
     return { ok: false, errors: ["Password is required"] };
   }
-  if (password.length < PASSWORD_MIN_LENGTH) {
-    errors.push(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
+  if (password.length < policy.minLength) {
+    errors.push(`Password must be at least ${policy.minLength} characters`);
   }
-  if (password.length > PASSWORD_MAX_LENGTH) {
-    errors.push(`Password must be at most ${PASSWORD_MAX_LENGTH} characters`);
+  if (password.length > policy.maxLength) {
+    errors.push(`Password must be at most ${policy.maxLength} characters`);
   }
-  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+  if (password.length < policy.minLength || password.length > policy.maxLength) {
     return { ok: false, errors };
   }
 
@@ -91,8 +121,10 @@ export function evaluatePasswordStrength(password: string): PasswordStrengthResu
   const digit = /\d/.test(password);
   const symbol = /[^A-Za-z0-9]/.test(password);
   const classes = [lower, upper, digit, symbol].filter(Boolean).length;
-  if (classes < 3) {
-    errors.push("Use at least 3 of: lowercase, uppercase, digit, symbol");
+  if (classes < policy.minCharacterClasses) {
+    errors.push(
+      `Use at least ${policy.minCharacterClasses} of: lowercase, uppercase, digit, symbol`,
+    );
   }
 
   if (/(.)\1{3,}/.test(password)) {
@@ -104,17 +136,36 @@ export function evaluatePasswordStrength(password: string): PasswordStrengthResu
   if (COMMON_PASSWORDS.has(password.toLowerCase())) {
     errors.push("This password is too common");
   }
-  if (estimateEntropyBits(password) < 24) {
+  if (estimateEntropyBits(password) < policy.minEntropyBits) {
     errors.push("Password is too predictable");
   }
   return { ok: errors.length === 0, errors };
 }
 
-/** Zod schema enforcing the strength policy (used by register/reset/users-create). */
+/** Machine-readable requirement descriptors for the UI (from config). */
+export function getPasswordRequirements(policy: PasswordPolicy = getPasswordPolicy()): {
+  key: string;
+  label: string;
+}[] {
+  return [
+    { key: "length", label: `At least ${policy.minLength} characters` },
+    {
+      key: "classes",
+      label: `Uses ${policy.minCharacterClasses} of: lowercase, uppercase, number, symbol`,
+    },
+    { key: "repeated", label: "No 4+ repeated characters in a row" },
+    { key: "sequential", label: "No sequences like abc, 123, or qwerty" },
+    { key: "common", label: "Not a commonly used password" },
+    { key: "entropy", label: "Strong enough (not too predictable)" },
+  ];
+}
+
+/** Zod schema enforcing the strength policy (used by register/reset/users-create).
+ *  Uses .min(1) only so the friendly policy messages (via superRefine) are the
+ *  sole messages surfaced — no generic Zod "String must contain..." text. */
 export const StrongPasswordSchema = z
   .string()
-  .min(PASSWORD_MIN_LENGTH)
-  .max(PASSWORD_MAX_LENGTH)
+  .min(1)
   .superRefine((val, ctx) => {
     const { ok, errors } = evaluatePasswordStrength(val);
     if (!ok) {

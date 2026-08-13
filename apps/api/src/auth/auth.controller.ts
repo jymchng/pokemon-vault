@@ -31,6 +31,10 @@ import {
 } from "./cookies";
 import { Throttle } from "@nestjs/throttler";
 import {
+  getPasswordPolicy,
+  getPasswordRequirements,
+} from "../common/password.policy";
+import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,
 } from "./auth.service";
@@ -45,6 +49,22 @@ import {
 @Controller("auth")
 export class AuthController {
   constructor(private readonly service: AuthService) {}
+
+  /**
+   * Public password-policy endpoint (G7 §9): exposes the config-driven
+   * requirements so the storefront renders the Create Account checklist from
+   * the backend — no hardcoded requirements in the UI.
+   */
+  @Get("password-policy")
+  passwordPolicy() {
+    const policy = getPasswordPolicy();
+    return {
+      data: {
+        ...policy,
+        requirements: getPasswordRequirements(policy),
+      },
+    };
+  }
 
   private get secure(): boolean {
     return process.env.NODE_ENV === "production";

@@ -63,6 +63,10 @@ const ENV_OVERRIDES = {
   POKE_VAULT_REFRESH_TOKEN_TTL_SECONDS: ["auth", "refreshTokenTtlSeconds", "int"],
   POKE_VAULT_VERIFY_EMAIL_TTL_SECONDS: ["auth", "verifyEmailTtlSeconds", "int"],
   POKE_VAULT_PASSWORD_RESET_TTL_SECONDS: ["auth", "passwordResetTtlSeconds", "int"],
+  POKE_VAULT_PASSWORD_POLICY_MIN_LENGTH: ["passwordPolicy", "minLength", "int"],
+  POKE_VAULT_PASSWORD_POLICY_MAX_LENGTH: ["passwordPolicy", "maxLength", "int"],
+  POKE_VAULT_PASSWORD_POLICY_MIN_CHARACTER_CLASSES: ["passwordPolicy", "minCharacterClasses", "int"],
+  POKE_VAULT_PASSWORD_POLICY_MIN_ENTROPY_BITS: ["passwordPolicy", "minEntropyBits", "int"],
   POKE_VAULT_LOGIN_RATE_LIMIT: ["security", "loginRateLimit", "int"],
   POKE_VAULT_LOGIN_RATE_WINDOW_SECONDS: ["security", "loginRateWindowSeconds", "int"],
   POKE_VAULT_GLOBAL_RATE_LIMIT: ["security", "globalRateLimit", "int"],
@@ -477,6 +481,11 @@ function loadConfig(env) {
   const verifyEmailTtlSeconds = needNumber(doc, "auth", "verifyEmailTtlSeconds", problems, { min: 1, int: true });
   const passwordResetTtlSeconds = needNumber(doc, "auth", "passwordResetTtlSeconds", problems, { min: 1, int: true });
 
+  const pwMinLength = needNumber(doc, "passwordPolicy", "minLength", problems, { min: 8, int: true });
+  const pwMaxLength = needNumber(doc, "passwordPolicy", "maxLength", problems, { min: 8, int: true });
+  const pwMinCharacterClasses = needNumber(doc, "passwordPolicy", "minCharacterClasses", problems, { min: 1, int: true });
+  const pwMinEntropyBits = needNumber(doc, "passwordPolicy", "minEntropyBits", problems, { min: 1, int: true });
+
   const loginRateLimit = needNumber(doc, "security", "loginRateLimit", problems, { min: 1, int: true });
   const loginRateWindowSeconds = needNumber(doc, "security", "loginRateWindowSeconds", problems, { min: 1, int: true });
   const globalRateLimit = needNumber(doc, "security", "globalRateLimit", problems, { min: 1, int: true });
@@ -570,6 +579,12 @@ function loadConfig(env) {
       refreshTokenTtlSeconds,
       verifyEmailTtlSeconds,
       passwordResetTtlSeconds,
+    }),
+    passwordPolicy: Object.freeze({
+      minLength: pwMinLength,
+      maxLength: pwMaxLength,
+      minCharacterClasses: pwMinCharacterClasses,
+      minEntropyBits: pwMinEntropyBits,
     }),
     security: Object.freeze({ loginRateLimit, loginRateWindowSeconds, globalRateLimit, globalRateTtlMs }),
     featureFlags: Object.freeze({ ...featureFlags }),

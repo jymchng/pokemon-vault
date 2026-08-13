@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { LogIn, Mail, Lock, User as UserIcon, Info } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { LogIn, Mail, Lock, User as UserIcon, Info, Check, X } from "lucide-react";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { ApiError, fetchPasswordPolicy, type PasswordPolicyDto } from "@/lib/api";
+import { validatePassword } from "@/lib/utils/password";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,18 +38,50 @@ export function SignInModal() {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+  const [policy, setPolicy] = useState<PasswordPolicyDto | null>(null);
+
+  // Fetch the config-driven password policy from the backend (no hardcoded
+  // requirements in the UI).
+  useEffect(() => {
+    fetchPasswordPolicy()
+      .then(setPolicy)
+      .catch(() => setPolicy(null));
+  }, []);
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    clearError();
+    setFieldErrors([]);
+  };
+
+  // Live password checklist (Create Account mode), labels from the backend.
+  const passwordCheck = useMemo(() => {
+    if (mode !== "signup" || !policy) return null;
+    return validatePassword(password, policy);
+  }, [mode, policy, password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
+    setFieldErrors([]);
     try {
       if (mode === "signin") {
         await signIn(email, password);
       } else {
         await signUp({ email, password, firstName: firstName || undefined });
       }
-    } catch {
-      // error is surfaced from the store
+    } catch (err) {
+      // Prefer field-level details from the backend (e.g. password policy).
+      if (err instanceof ApiError && err.details?.length) {
+        const passwordIssues = err.details.filter(
+          (d) => d.path === "password" || d.path.endsWith(".password"),
+        );
+        if (passwordIssues.length > 0) {
+          setFieldErrors(passwordIssues.map((d) => d.message));
+        }
+      }
+      // error is surfaced from the store (generic) as a fallback
     }
   };
 
@@ -80,10 +114,7 @@ export function SignInModal() {
           ).map((t) => (
             <button
               key={t.key}
-              onClick={() => {
-                setMode(t.key);
-                clearError();
-              }}
+              onClick={() => switchMode(t.key)}
               role="tab"
               aria-selected={mode === t.key}
               className={cn(
@@ -148,9 +179,9 @@ export function SignInModal() {
                       side="top"
                       className="max-w-xs rounded-lg border border-border bg-background px-3 py-2 text-xs leading-relaxed text-muted-foreground shadow-elevated"
                     >
-                      At least 8 characters · use 3 of: lowercase, uppercase,
-                      number, symbol · avoid common words and sequences like
-                      "abc" or "123"
+                      {policy?.requirements?.length
+                        ? policy.requirements.map((r) => r.label).join(" · ")
+                        : "Please choose a strong password."}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -162,18 +193,64 @@ export function SignInModal() {
                 id="auth-password"
                 type="password"
                 required
-                minLength={8}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFieldErrors([]);
+                }}
                 placeholder="••••••••"
-                className="pl-9"
+                className={cn(
+                  "pl-9",
+                  mode === "signup" &&
+                    password.length > 0 &&
+                    passwordCheck &&
+                    !passwordCheck.ok &&
+                    "border-destructive/60 focus-visible:ring-destructive/40",
+                )}
                 autoComplete={
                   mode === "signin" ? "current-password" : "new-password"
                 }
               />
             </div>
+            {/* Live password requirements checklist (Create Account mode) */}
+            {mode === "signup" && passwordCheck && (
+              <ul className="mt-1 flex flex-col gap-1">
+                {passwordCheck.requirements.map((req) => (
+                  <li
+                    key={req.key}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs",
+                      req.met
+                        ? "text-muted-foreground line-through decoration-muted/40"
+                        : "text-foreground",
+                    )}
+                  >
+                    {req.met ? (
+                      <Check className="size-3.5 shrink-0 text-success" />
+                    ) : (
+                      <X className="size-3.5 shrink-0 text-destructive" />
+                    )}
+                    {req.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* Specific backend validation messages (after a failed submit) */}
+            {fieldErrors.length > 0 && (
+              <ul className="mt-1 flex flex-col gap-1" role="alert">
+                {fieldErrors.map((msg, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-1.5 text-xs text-destructive"
+                  >
+                    <X className="mt-0.5 size-3.5 shrink-0" />
+                    {msg}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {error && (
+          {error && fieldErrors.length === 0 && (
             <p className="text-sm text-destructive" role="alert">
               {error}
             </p>
@@ -189,7 +266,7 @@ export function SignInModal() {
 
         <div className="flex items-center justify-between text-xs">
           <button
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            onClick={() => switchMode(mode === "signin" ? "signup" : "signin")}
             className="text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded"
           >
             {mode === "signin"

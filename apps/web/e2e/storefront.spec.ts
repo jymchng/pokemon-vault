@@ -114,6 +114,39 @@ test.describe("storefront journey (G53)", () => {
     await expect(page.getByText(/Your order history/)).toBeVisible();
   });
 
+  test("create-account password validation shows live checklist + specific errors", async ({
+    page,
+  }) => {
+    await page.goto(`${WEB}/store`);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("tab", { name: "Create Account" }).click();
+
+    // Live checklist is visible in Create Account mode.
+    await expect(page.getByText("At least 8 characters")).toBeVisible();
+    await expect(
+      page.getByText("Uses 3 of: lowercase, uppercase, number, symbol"),
+    ).toBeVisible();
+    await expect(page.getByText("No sequences like abc, 123, or qwerty")).toBeVisible();
+
+    // Submitting a weak password surfaces the SPECIFIC backend message
+    // (not the generic "Validation failed").
+    await page.fill("#auth-name", "Weak Pw");
+    await page.fill("#auth-email", `weak-${Date.now()}@example.com`);
+    await page.fill("#auth-password", "abc");
+    await page.getByRole("button", { name: "Create Account" }).click();
+    await expect(
+      page.getByText("Password must be at least 8 characters"),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Validation failed")).not.toBeVisible();
+
+    // Common password → specific reason too.
+    await page.fill("#auth-password", "password1");
+    await page.getByRole("button", { name: "Create Account" }).click();
+    await expect(
+      page.getByText("This password is too common"),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
   test("collection page prompts sign-in for guests", async ({ page }) => {
     await page.goto(`${WEB}/collection`);
     await expect(

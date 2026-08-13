@@ -3,6 +3,8 @@ import {
   StrongPasswordSchema,
   estimateEntropyBits,
   evaluatePasswordStrength,
+  getPasswordPolicy,
+  getPasswordRequirements,
   hashPassword,
   needsRehash,
   verifyPassword,
@@ -67,5 +69,35 @@ describe("G7 password security policy", () => {
     if (!weak.success) {
       expect(weak.error.issues.length).toBeGreaterThan(0);
     }
+  });
+
+  it("reads the policy from config (config/app.toml [passwordPolicy])", () => {
+    const policy = getPasswordPolicy();
+    expect(policy.minLength).toBe(8);
+    expect(policy.maxLength).toBe(128);
+    expect(policy.minCharacterClasses).toBe(3);
+    expect(policy.minEntropyBits).toBe(24);
+  });
+
+  it("builds user-facing requirement labels from the policy (no hardcoded numbers)", () => {
+    const policy = getPasswordPolicy();
+    const reqs = getPasswordRequirements(policy);
+    expect(reqs.find((r) => r.key === "length")?.label).toBe(
+      `At least ${policy.minLength} characters`,
+    );
+    expect(reqs.find((r) => r.key === "classes")?.label).toContain(
+      `${policy.minCharacterClasses} of`,
+    );
+    expect(reqs.map((r) => r.key)).toEqual([
+      "length", "classes", "repeated", "sequential", "common", "entropy",
+    ]);
+  });
+
+  it("evaluator honors a custom policy (config-driven limits)", () => {
+    const strict = { minLength: 8, maxLength: 64, minCharacterClasses: 4, minEntropyBits: 40 };
+    // 3 classes only (no symbol) → fails the 4-class rule under strict policy.
+    const res = evaluatePasswordStrength("Abcd1234", strict);
+    expect(res.ok).toBe(false);
+    expect(res.errors.join()).toMatch(/4 of/);
   });
 });

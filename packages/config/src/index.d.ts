@@ -70,6 +70,13 @@ export interface AppConfig {
     verifyEmailTtlSeconds: number;
     passwordResetTtlSeconds: number;
   };
+  /** Password strength rules (G7 §9) — config-driven, exposed to the UI. */
+  passwordPolicy: {
+    minLength: number;
+    maxLength: number;
+    minCharacterClasses: number;
+    minEntropyBits: number;
+  };
   security: {
     loginRateLimit: number;
     loginRateWindowSeconds: number;

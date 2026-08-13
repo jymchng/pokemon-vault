@@ -38,6 +38,18 @@ verifyEmailTtlSeconds = 86400
 # Password reset token TTL (seconds, default 3600 = 1 h).
 passwordResetTtlSeconds = 3600
 
+[passwordPolicy]
+# Password strength rules (G7 §9) — single source of truth, consumed by the
+# backend validator AND exposed to the storefront via GET /api/v1/auth/password-policy
+# so the Create Account form renders the checklist from here (no hardcoded
+# requirements in the UI). Overridable via POKE_VAULT_PASSWORD_POLICY_* env.
+minLength = 8
+maxLength = 128
+# Number of character classes (lowercase/uppercase/digit/symbol) required.
+minCharacterClasses = 3
+# Minimum Shannon-entropy estimate (bits) before a password is "too predictable".
+minEntropyBits = 24
+
 [security]
 # Brute-force protection: max failed logins per IP per window (POKE_VAULT_LOGIN_RATE_LIMIT).
 loginRateLimit = 10
