@@ -308,6 +308,23 @@ cmd_test() {
 }
 
 # ---------------------------------------------------------------------------
+# Docs — serve ./docs as a browsable static site (scripts/docs-server.cjs)
+# ---------------------------------------------------------------------------
+cmd_docs() {
+  if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -qE "[:.]${DOCS_PORT:-8080}$"; then
+    info "docs server already running on :${DOCS_PORT:-8080} → http://localhost:${DOCS_PORT:-8080}"
+  else
+    info "starting docs server on :${DOCS_PORT:-8080} → http://localhost:${DOCS_PORT:-8080}"
+    ( cd "$ROOT" && exec "${NODE22_BIN}" scripts/docs-server.cjs ) >>"$LOG_DIR/docs.log" 2>&1 &
+    echo $! > "$STATE_DIR/docs.pid"
+    sleep 1
+    curl -sf "http://localhost:${DOCS_PORT:-8080}/" >/dev/null 2>&1 \
+      && info "docs ready: http://localhost:${DOCS_PORT:-8080}" \
+      || warn "docs server may not be ready yet — see $LOG_DIR/docs.log"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 case "${1:-}" in
@@ -325,11 +342,14 @@ case "${1:-}" in
   test)
     cmd_test
     ;;
+  docs)
+    cmd_docs
+    ;;
   down)
     cmd_down "${2:-}"
     ;;
   *)
-    echo "usage: $0 {up|start|status|test|down [--drop-db]}" >&2
+    echo "usage: $0 {up|start|status|test|docs|down [--drop-db]}" >&2
     exit 1
     ;;
 esac
