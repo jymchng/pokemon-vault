@@ -33,12 +33,13 @@ async function login(request: APIRequestContext): Promise<string> {
   return json.data.accessToken as string;
 }
 
-async function api(request: APIRequestContext, method: string, path: string, body?: unknown, token?: string) {
+async function api(request: APIRequestContext, method: string, path: string, body?: unknown, token?: string, headers?: Record<string, string>) {
   const res = await request.fetch(`${API}/api/v1${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(headers ?? {}),
     },
     data: body ? JSON.stringify(body) : undefined,
   });
@@ -114,15 +115,23 @@ test.describe("full customer journey (§98)", () => {
   });
 
   test("reward redemption is idempotent", async ({ request }) => {
-    // grant enough XP via admin, then redeem with an Idempotency-Key
+    // redeem with an Idempotency-Key header (§91) — safe client retries must
+    // replay the SAME response and never double-redeem.
     const rewards = await api(request, "GET", "/rewards", undefined, userToken);
     expect(rewards.status).toBe(200);
     const reward = rewards.json.data.find((r: any) => r.status === "ACTIVE");
     if (!reward) return; // no redeemable reward in seed — skip gracefully
-    const r1 = await api(request, "POST", "/rewards/redeem", { rewardId: reward.id }, userToken);
-    // either success or a domain rejection (insufficient XP) — both are valid,
-    // but the key must make the second call replay the SAME response.
-    const r2 = await api(request, "POST", "/rewards/redeem", { rewardId: reward.id }, userToken);
+    const idemKey = `e2e-redeem-${UNIQUE}`;
+    const r1 = await api(
+      request, "POST", "/rewards/redeem", { rewardId: reward.id },
+      userToken, { "Idempotency-Key": idemKey },
+    );
+    // 201 on first redeem (or a domain rejection such as insufficient XP —
+    // both are valid), but the key MUST make the second call replay it.
+    const r2 = await api(
+      request, "POST", "/rewards/redeem", { rewardId: reward.id },
+      userToken, { "Idempotency-Key": idemKey },
+    );
     expect(r2.status).toBe(r1.status);
     expect(r2.json).toEqual(r1.json);
   });

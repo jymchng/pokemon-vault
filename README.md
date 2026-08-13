@@ -52,8 +52,17 @@ pnpm dev
 - Mailpit: <http://localhost:8025> (captures outbound email locally)
 - MinIO console: <http://localhost:9001>
 
-> The storefront historically used SQLite via Prisma; it is being migrated to the
-> PostgreSQL-backed API as the single source of truth (see `docs/architecture.md`).
+No Docker? Use the native dev environment (mirrors the compose topology on the
+host — disposable `pokemon_vault_dev` DB, api :3001, worker, web :3000):
+
+```bash
+./scripts/dev-env.sh up       # provision dev DB + build + start stack
+./scripts/dev-env.sh test     # full E2E (API journey + storefront journey)
+./scripts/dev-env.sh down     # stop (--drop-db also drops the dev DB)
+```
+
+The storefront consumes the real PostgreSQL-backed API as the single source of
+truth (see `docs/architecture.md`).
 
 ## Scripts
 
@@ -63,6 +72,8 @@ pnpm dev
 | `pnpm build` | build all workspaces |
 | `pnpm lint` / `pnpm typecheck` / `pnpm test` | repo-wide checks |
 | `pnpm db:migrate` / `pnpm db:seed` | database migration + deterministic seed |
+| `pnpm test:e2e` / `pnpm test:e2e:web` | API journey / storefront E2E (Playwright) |
+| `pnpm dev-env` / `pnpm dev-env:test` | native dev env / full E2E against it |
 | `pnpm format` / `pnpm format:check` | Prettier |
 
 ## Documentation

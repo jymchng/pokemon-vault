@@ -9,7 +9,6 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import {
-  getProductById,
   categories,
   sortOptions,
   type ProductSortKey,
@@ -158,7 +157,9 @@ export default function StorePage() {
 
   const { data: allProducts, isLoading, isError } = useProducts();
 
-  const selected = selectedId ? getProductById(selectedId) : null;
+  const selected = selectedId
+    ? (allProducts ?? []).find((p) => p.id === selectedId) ?? null
+    : null;
 
   const featured = useMemo(
     () => (allProducts ?? []).filter((p) => p.featured).slice(0, 4),
@@ -200,7 +201,9 @@ export default function StorePage() {
   }, [query, category, sortKey, allProducts]);
 
   const handleAddToCart = (id: string) => {
-    const p = getProductById(id);
+    // Look up from the LIVE backend product list (not the static mock) so
+    // backend UUIDs resolve — the grid renders real API products (§116).
+    const p = (allProducts ?? []).find((prod) => prod.id === id);
     if (!p || p.availability === "Sold Out") return;
     addToCart({
       productId: p.id,
@@ -213,7 +216,7 @@ export default function StorePage() {
 
   const handleWishlist = (id: string) => {
     toggleWishlist(id);
-    const p = getProductById(id);
+    const p = (allProducts ?? []).find((prod) => prod.id === id);
     if (p) {
       toast.success(
         wishlistIds.includes(id)

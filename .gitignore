@@ -52,3 +52,6 @@ dist/
 
 # playwright artifact (E2E last-run marker)
 **/test-results/
+
+# dev-env (G53) — runtime state, logs, disposable dev DB marker
+.dev-env/

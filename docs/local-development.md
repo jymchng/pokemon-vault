@@ -27,6 +27,26 @@ pnpm dev                      # web (:3000), api (:3001), worker
 - Mailpit UI: <http://localhost:8025> (captures all local email)
 - MinIO console: <http://localhost:9001>
 
+## Native dev environment (G53) — no Docker required
+
+`scripts/dev-env.sh` mirrors the compose topology on the host: it provisions a
+**disposable** `pokemon_vault_dev` database (drop → migrate → seed), builds
+api + worker + web, starts them, and waits for readiness on every service.
+
+```bash
+./scripts/dev-env.sh up              # provision dev DB + build + start stack
+./scripts/dev-env.sh status          # show service PIDs + readiness
+./scripts/dev-env.sh test            # full E2E (API journey + storefront browser journey)
+./scripts/dev-env.sh down            # stop the stack (logs kept in ./.dev-env/logs)
+./scripts/dev-env.sh down --drop-db  # also drop the disposable dev DB
+```
+
+The script uses Node 22 (via `npx node@22`) and the repo pnpm, reads the root
+`.env` for defaults (secrets), and refuses to start when a port is already in
+use. PIDs/logs live in `./.dev-env/` (gitignored). `docker compose up -d` and
+`./scripts/dev-env.sh up` are equivalent ways to get a full local stack; the
+script exists for hosts without Docker.
+
 ## Services (docker-compose.yml)
 
 | Service | Image | Purpose |
@@ -63,12 +83,17 @@ pnpm db:reset            # drop + recreate + migrate + seed
 ```bash
 pnpm test                # Vitest unit/integration/API (all packages)
 pnpm --filter @pokemon-vault/api test   # API suite only
-pnpm test:e2e            # Playwright E2E (requires API running)
+pnpm test:e2e            # API journey Playwright E2E (requires API running)
 pnpm test:e2e:setup      # create the disposable test DB
+pnpm test:e2e:web        # storefront browser journey (apps/web, requires web+api)
+pnpm dev-env:test        # both E2E suites against the provisioned dev env
 ```
 
-The E2E suite runs against a **disposable `pokemon_vault_test` database**
-(`infrastructure/db/setup-test-db.sh`) — never production.
+The API E2E suite runs against a **disposable `pokemon_vault_test` database**
+(`infrastructure/db/setup-test-db.sh`) — never production. The storefront E2E
+(`apps/web/e2e`) runs against the live dev stack provisioned by
+`scripts/dev-env.sh` (or `docker compose up -d` + `pnpm dev`), asserting real
+backend data renders through the UI.
 
 ## Health checks
 
