@@ -47,6 +47,14 @@ use. PIDs/logs live in `./.dev-env/` (gitignored). `docker compose up -d` and
 `./scripts/dev-env.sh up` are equivalent ways to get a full local stack; the
 script exists for hosts without Docker.
 
+> **Port collision (`EADDRINUSE` on :3001)**: `pnpm dev` and the dev-env stack
+> both bind the API port (3001 by default). If the dev-env stack is left
+> running, `apps/api dev` fails with `EADDRINUSE: address already in use`.
+> `apps/api` dev now preflights the port and prints this guidance instead of a
+> raw stack trace. Fix: run one at a time, stop the stack with
+> `./scripts/dev-env.sh down`, or offset the API with
+> `POKE_VAULT_API_PORT=3002 pnpm dev`.
+
 ## Services (docker-compose.yml)
 
 | Service | Image | Purpose |

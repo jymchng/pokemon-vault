@@ -4,7 +4,7 @@
   "private": true,
   "description": "Pokémon Vault production API (NestJS + PostgreSQL + Prisma).",
   "scripts": {
-    "dev": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/generated','dist/src/generated',{recursive:true})\" && node dist/src/main.js",
+    "dev": "node scripts/guard-port.cjs && tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/generated','dist/src/generated',{recursive:true})\" && node dist/src/main.js",
     "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/generated','dist/src/generated',{recursive:true})\"",
     "start": "node dist/main",
     "lint": "eslint",
