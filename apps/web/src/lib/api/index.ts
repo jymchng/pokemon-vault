@@ -106,7 +106,9 @@ function mapCard(c: Record<string, unknown>): PokemonCard {
     type: (c.type as PokemonCard["type"]) ?? "Colorless",
     grade: (c.grade as PokemonCard["grade"]) ?? "Ungraded",
     condition: (c.condition as PokemonCard["condition"]) ?? "Mint",
-    image: String(c.imageUrl ?? c.image ?? ""),
+    image: String(
+      c.imageUrl ?? c.image ?? "/images/placeholder-card.png",
+    ),
     owned: Boolean(c.owned),
     quantity: Number(c.quantity ?? 0),
     acquiredAt: String(c.acquiredAt ?? c.createdAt ?? new Date().toISOString()),
@@ -146,7 +148,11 @@ function mapProduct(p: Record<string, unknown>): Product {
     category: (p.category as Product["category"]) ?? "Other",
     set: String(p.setName ?? p.set ?? ""),
     price: Number(p.price ?? 0),
-    image: String(p.imageUrl ?? p.image ?? ""),
+    // Backend products carry no image field (cards/packs do) — fall back to
+    // the shared placeholder so product cards never render a broken <img>.
+    image: String(
+      p.imageUrl ?? p.image ?? "/images/placeholder-card.png",
+    ),
     stock: Number(p.available ?? p.stock ?? 0),
     rating: Number(p.rating ?? 0),
     availability: ["In Stock", "Low Stock", "Sold Out"].includes(availability)
@@ -189,7 +195,7 @@ function normalizePack(p: Record<string, unknown>): BoosterPack {
     tagline: String(p.tagline ?? ""),
     price: Number(p.price ?? 0),
     cardsPerPack: Number(p.cardsPerPack ?? 10),
-    image: String(p.image ?? ""),
+    image: String(p.image ?? "/images/placeholder-card.png"),
     availability: (p.availability ?? "In Stock") as BoosterPack["availability"],
     contents:
       typeof contents === "string"
