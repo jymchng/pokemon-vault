@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { verifyJwt } from "./crypto";
 import { parseCookies, ACCESS_COOKIE } from "./cookies";
 import { AccessTokenPayload } from "./auth.types";
+import { resolveJwtSecret } from "./config-runtime";
 
 /**
  * Optional authentication: attaches req.user = { id, sessionId } when a valid
@@ -27,7 +28,7 @@ export class OptionalAuthGuard implements CanActivate {
     const token = bearer || cookies[ACCESS_COOKIE];
     if (!token) return true; // guest — no user attached
 
-    const payload = verifyJwt<AccessTokenPayload>(token, process.env.POKE_VAULT_JWT_SECRET || "");
+    const payload = verifyJwt<AccessTokenPayload>(token, resolveJwtSecret());
     if (payload && payload.type === "access") {
       req.user = { id: payload.sub, sessionId: payload.sessionId };
     }

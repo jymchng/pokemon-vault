@@ -50,6 +50,8 @@ export interface AppConfig {
   port: number;
   /** Storefront port for the dev environment (POKE_VAULT_WEB_PORT). */
   webPort: number;
+  /** Graceful-shutdown drain budget (ms) before force exit. */
+  shutdownTimeoutMs: number;
   /** CORS / cookie origin allow-list ([app] webOrigin / POKE_VAULT_WEB_ORIGIN). */
   webOrigin: string[];
   /** Secrets — env-only (POKE_VAULT_*); required in production. */
@@ -71,6 +73,8 @@ export interface AppConfig {
   security: {
     loginRateLimit: number;
     loginRateWindowSeconds: number;
+    globalRateLimit: number;
+    globalRateTtlMs: number;
   };
   featureFlags: FeatureFlags;
   cron: CronSchedules;

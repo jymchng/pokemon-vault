@@ -18,6 +18,17 @@ import { PrismaClient } from "../../../apps/api/src/generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { loadConfig } from "@pokemon-vault/config";
+
+// G54: centralized config (config/app.toml + POKE_VAULT_* env) with safe
+// fallbacks so the worker still boots if the toml is unavailable.
+let _cfg: ReturnType<typeof loadConfig> | null = null;
+try {
+  _cfg = loadConfig(process.env);
+} catch {
+  _cfg = null;
+}
+const SHUTDOWN_TIMEOUT_MS = _cfg?.shutdownTimeoutMs ?? 30_000;
 
 const REDIS_URL = process.env.POKE_VAULT_REDIS_URL || "redis://localhost:6379";
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
@@ -193,7 +204,6 @@ async function main() {
   // BullMQ releases the locks of jobs still active at close; the stalled-job
   // sweep re-queues them (requeue on shutdown). A watchdog force-closes
   // workers if a handler hangs past the drain budget.
-  const SHUTDOWN_TIMEOUT_MS = 30_000;
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;

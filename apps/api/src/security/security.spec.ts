@@ -1,11 +1,16 @@
 import { Reflector } from "@nestjs/core";
 import { describe, expect, it, vi } from "vitest";
 import { ThrottlerException, ThrottlerGuard } from "@nestjs/throttler";
-import { DEFAULT_RATE_LIMIT, DEFAULT_RATE_TTL_MS } from "./security.module";
+import { loadConfig } from "@pokemon-vault/config";
 import {
   DEFAULT_WEB_ORIGIN,
   parseCorsOrigins,
 } from "./cors";
+
+// G54: global rate-limit values come from the centralized config.
+const _cfg = loadConfig(process.env);
+const DEFAULT_RATE_LIMIT = _cfg.security.globalRateLimit;
+const DEFAULT_RATE_TTL_MS = _cfg.security.globalRateTtlMs;
 
 describe("parseCorsOrigins (§54)", () => {
   it("falls back to the local dev origin when WEB_ORIGIN is unset/empty", () => {

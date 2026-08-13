@@ -8,6 +8,7 @@ import { verifyJwt } from "./crypto";
 import { parseCookies, ACCESS_COOKIE } from "./cookies";
 import { AccessTokenPayload } from "./auth.types";
 import { CorrelationService } from "../common/correlation.service";
+import { resolveJwtSecret } from "./config-runtime";
 
 /**
  * Protects routes that require a valid access token. Accepts the token from
@@ -35,7 +36,7 @@ export class AuthGuard implements CanActivate {
     const token = bearer || cookies[ACCESS_COOKIE];
     if (!token) throw new UnauthorizedException("Missing access token");
 
-    const payload = verifyJwt<AccessTokenPayload>(token, process.env.POKE_VAULT_JWT_SECRET || "");
+    const payload = verifyJwt<AccessTokenPayload>(token, resolveJwtSecret());
     if (!payload || payload.type !== "access") {
       throw new UnauthorizedException("Invalid access token");
     }

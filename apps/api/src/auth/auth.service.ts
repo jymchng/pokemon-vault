@@ -58,6 +58,20 @@ const AUTH_TTL_CACHE = (() => {
   };
 })();
 
+/** JWT secrets from the resolved config (dev fallback in non-prod). */
+const AUTH_TTL_JWT = (() => {
+  let cfg: ReturnType<typeof loadConfig> | null = null;
+  try {
+    cfg = loadConfig(process.env);
+  } catch {
+    cfg = null;
+  }
+  return {
+    jwtSecret: cfg?.jwtSecret ?? "",
+    jwtRefreshSecret: cfg?.jwtRefreshSecret ?? "",
+  };
+})();
+
 /** Access token TTL (seconds) — consumed by the auth controller for cookies. */
 export const ACCESS_TOKEN_TTL_SECONDS = AUTH_TTL.access;
 export const REFRESH_TOKEN_TTL_SECONDS = AUTH_TTL.refresh;
@@ -79,7 +93,12 @@ export class AuthService {
   ) {}
 
   private get jwtSecret(): string {
-    const s = process.env.POKE_VAULT_JWT_SECRET || process.env.POKE_VAULT_JWT_REFRESH_SECRET;
+    // G54: prefer the env var; fall back to the resolved config (which carries
+    // the dev fallback in non-prod and enforces a real secret in prod).
+    const s =
+      process.env.POKE_VAULT_JWT_SECRET ||
+      process.env.POKE_VAULT_JWT_REFRESH_SECRET ||
+      AUTH_TTL_JWT.jwtSecret;
     if (!s || s === "change-me") {
       throw new Error("POKE_VAULT_JWT_SECRET must be set to a strong value");
     }
@@ -87,7 +106,10 @@ export class AuthService {
   }
 
   private get refreshSecret(): string {
-    const s = process.env.POKE_VAULT_JWT_REFRESH_SECRET || process.env.POKE_VAULT_JWT_SECRET;
+    const s =
+      process.env.POKE_VAULT_JWT_REFRESH_SECRET ||
+      process.env.POKE_VAULT_JWT_SECRET ||
+      AUTH_TTL_JWT.jwtRefreshSecret;
     if (!s || s === "change-me") {
       throw new Error("POKE_VAULT_JWT_REFRESH_SECRET must be set to a strong value");
     }

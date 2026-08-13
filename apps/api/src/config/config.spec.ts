@@ -44,10 +44,11 @@ describe("config module (§106-108, G54)", () => {
     });
   });
 
-  it("loadConfig fails fast on missing required vars (fail-fast §108)", () => {
-    expect(() => loadConfig({})).toThrow(/POKE_VAULT_DATABASE_URL/);
+  it("loadConfig fails fast on missing required vars in production (fail-fast §108)", () => {
+    // Dev/test use documented fallbacks; PRODUCTION fails fast on missing secrets.
+    expect(() => loadConfig({ NODE_ENV: "production" })).toThrow(/POKE_VAULT_DATABASE_URL/);
     expect(() =>
-      loadConfig({ ...FULL_ENV, POKE_VAULT_REDIS_URL: "" }),
+      loadConfig({ ...FULL_ENV, NODE_ENV: "production", POKE_VAULT_REDIS_URL: "" }),
     ).toThrow(/POKE_VAULT_REDIS_URL/);
   });
 

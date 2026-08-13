@@ -57,6 +57,7 @@ class ConfigValidationError extends Error {
 const ENV_OVERRIDES = {
   POKE_VAULT_API_PORT: ["server", "port", "int"],
   POKE_VAULT_WEB_PORT: ["server", "webPort", "int"],
+  POKE_VAULT_SHUTDOWN_TIMEOUT_MS: ["server", "shutdownTimeoutMs", "int"],
   POKE_VAULT_WEB_ORIGIN: ["app", "webOrigin", "stringArray"],
   POKE_VAULT_ACCESS_TOKEN_TTL_SECONDS: ["auth", "accessTokenTtlSeconds", "int"],
   POKE_VAULT_REFRESH_TOKEN_TTL_SECONDS: ["auth", "refreshTokenTtlSeconds", "int"],
@@ -64,6 +65,8 @@ const ENV_OVERRIDES = {
   POKE_VAULT_PASSWORD_RESET_TTL_SECONDS: ["auth", "passwordResetTtlSeconds", "int"],
   POKE_VAULT_LOGIN_RATE_LIMIT: ["security", "loginRateLimit", "int"],
   POKE_VAULT_LOGIN_RATE_WINDOW_SECONDS: ["security", "loginRateWindowSeconds", "int"],
+  POKE_VAULT_GLOBAL_RATE_LIMIT: ["security", "globalRateLimit", "int"],
+  POKE_VAULT_GLOBAL_RATE_TTL_MS: ["security", "globalRateTtlMs", "int"],
   POKE_VAULT_DATABASE_SSLMODE: ["database", "sslMode", "string"],
   POKE_VAULT_TAX_RATE_PERCENT: ["pricing", "taxRatePercent", "float"],
   POKE_VAULT_FLAT_SHIPPING_USD: ["pricing", "flatShippingUsd", "float"],
@@ -466,6 +469,7 @@ function loadConfig(env) {
 
   const port = needNumber(doc, "server", "port", problems, { min: 1, int: true });
   const webPort = needNumber(doc, "server", "webPort", problems, { min: 1, int: true });
+  const shutdownTimeoutMs = needNumber(doc, "server", "shutdownTimeoutMs", problems, { min: 1000, int: true });
   const webOrigin = needStringArray(doc, "app", "webOrigin", problems);
 
   const accessTokenTtlSeconds = needNumber(doc, "auth", "accessTokenTtlSeconds", problems, { min: 1, int: true });
@@ -475,6 +479,8 @@ function loadConfig(env) {
 
   const loginRateLimit = needNumber(doc, "security", "loginRateLimit", problems, { min: 1, int: true });
   const loginRateWindowSeconds = needNumber(doc, "security", "loginRateWindowSeconds", problems, { min: 1, int: true });
+  const globalRateLimit = needNumber(doc, "security", "globalRateLimit", problems, { min: 1, int: true });
+  const globalRateTtlMs = needNumber(doc, "security", "globalRateTtlMs", problems, { min: 1000, int: true });
 
   const sslMode = needEnum(doc, "database", "sslMode", SSL_MODES, problems);
 
@@ -551,6 +557,7 @@ function loadConfig(env) {
     isProduction,
     port,
     webPort,
+    shutdownTimeoutMs,
     webOrigin,
     databaseUrl: secrets.databaseUrl,
     redisUrl: secrets.redisUrl,
@@ -564,7 +571,7 @@ function loadConfig(env) {
       verifyEmailTtlSeconds,
       passwordResetTtlSeconds,
     }),
-    security: Object.freeze({ loginRateLimit, loginRateWindowSeconds }),
+    security: Object.freeze({ loginRateLimit, loginRateWindowSeconds, globalRateLimit, globalRateTtlMs }),
     featureFlags: Object.freeze({ ...featureFlags }),
     cron: Object.freeze({ ...cron }),
     retention: Object.freeze({

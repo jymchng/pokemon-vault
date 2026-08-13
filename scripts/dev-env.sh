@@ -110,10 +110,10 @@ reset_dev_db() {
   psql "$ADMIN_PG_URL" -q -c "CREATE DATABASE \"${DEV_DB}\""
   info "applying migrations to ${DEV_DB}"
   ( cd apps/api \
-      && DATABASE_URL="$DEV_DB_URL" "${NODE22_BIN}" node_modules/prisma/build/index.js migrate deploy )
+      && POKE_VAULT_DATABASE_URL="$DEV_DB_URL" "${NODE22_BIN}" node_modules/prisma/build/index.js migrate deploy )
   info "seeding ${DEV_DB}"
   ( cd apps/api \
-      && DATABASE_URL="$DEV_DB_URL" "${NODE22_BIN}" node_modules/tsx/dist/cli.mjs prisma/seed.ts >/dev/null )
+      && POKE_VAULT_DATABASE_URL="$DEV_DB_URL" "${NODE22_BIN}" node_modules/tsx/dist/cli.mjs prisma/seed.ts >/dev/null )
   info "dev DB ready: ${DEV_DB}"
 }
 

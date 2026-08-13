@@ -25,6 +25,8 @@ webOrigin = ["http://localhost:3000"]
 port = 3001
 # Storefront port used by the dev environment (POKE_VAULT_WEB_PORT).
 webPort = 3000
+# Graceful-shutdown drain budget (ms) before force exit (POKE_VAULT_SHUTDOWN_TIMEOUT_MS).
+shutdownTimeoutMs = 30000
 
 [auth]
 # Access token TTL (seconds, default 900 = 15 min).
@@ -41,6 +43,9 @@ passwordResetTtlSeconds = 3600
 loginRateLimit = 10
 # Sliding window (seconds) for the login rate limit (POKE_VAULT_LOGIN_RATE_WINDOW_SECONDS).
 loginRateWindowSeconds = 300
+# Global per-IP request ceiling + window (ms) for all endpoints (§52).
+globalRateLimit = 60
+globalRateTtlMs = 60000
 
 [database]
 # TLS mode: disable (local dev) | require | verify-full (POKE_VAULT_DATABASE_SSLMODE).
@@ -103,3 +108,4 @@ dopplerConfig = "prd"
 [observability]
 # Prometheus metrics scrape port (POKE_VAULT_PROMETHEUS_PORT).
 prometheusPort = 9464
+

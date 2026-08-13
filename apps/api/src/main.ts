@@ -110,7 +110,7 @@ async function bootstrap() {
   // onModuleDestroy for PrismaService → $disconnect, QueueService → close
   // queues + Redis, ThrottlerStorageRedisService → disconnect). A watchdog
   // force-exits if drain hangs (e.g. a stuck long-polling request).
-  const SHUTDOWN_TIMEOUT_MS = 30_000;
+  const SHUTDOWN_TIMEOUT_MS = cfg.shutdownTimeoutMs;
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return; // second signal during drain: ignore (watchdog covers it)

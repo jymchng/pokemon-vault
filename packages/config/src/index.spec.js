@@ -26,6 +26,7 @@ test("loadConfig reads non-secret defaults from config/app.toml", () => {
   assert.equal(cfg.nodeEnv, "development");
   assert.equal(cfg.port, 3001);
   assert.equal(cfg.webPort, 3000);
+  assert.equal(cfg.shutdownTimeoutMs, 30000);
   assert.deepEqual(cfg.webOrigin, ["http://localhost:3000"]);
   assert.equal(cfg.featureFlags.packOpeningEnabled, true);
   assert.equal(cfg.cron.releaseReservations, "* * * * *");
@@ -38,6 +39,8 @@ test("loadConfig reads non-secret defaults from config/app.toml", () => {
   assert.equal(cfg.observability.prometheusPort, 9464);
   assert.equal(cfg.auth.accessTokenTtlSeconds, 900);
   assert.equal(cfg.security.loginRateLimit, 10);
+  assert.equal(cfg.security.globalRateLimit, 60);
+  assert.equal(cfg.security.globalRateTtlMs, 60000);
   // dev secrets fall back to dev defaults
   assert.match(cfg.databaseUrl, /localhost:5432/);
   assert.ok(cfg.jwtSecret.length >= 32);
