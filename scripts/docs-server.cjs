@@ -31,6 +31,10 @@ function esc(s) {
 
 function inline(s) {
   let out = esc(s);
+  // images ![alt](url)
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, u) => {
+    return `<img src="${esc(u)}" alt="${esc(alt)}" loading="lazy" decoding="async"/>`;
+  });
   // inline code
   out = out.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
   // bold
@@ -209,6 +213,17 @@ function listDocs(dir = DOCS, prefix = "") {
 
 const TITLE = "Pokémon Vault — Documentation";
 
+/** Relative path from one doc path to another (both ".md" rels). Works under
+ *  any Pages base path (e.g. /pokemon-vault/). Always ends in .html. */
+function relPath(fromRel, toRel) {
+  const fromDir = path.posix.dirname(fromRel === "index" ? "index.md" : fromRel);
+  const toDir = path.posix.dirname(toRel);
+  const rel = path.posix.relative(fromDir, toDir);
+  const base = rel === "" ? "./" : rel.endsWith("/") ? rel : rel + "/";
+  const name = path.posix.basename(toRel).replace(/\.md$/, "") + ".html";
+  return base + name;
+}
+
 function layout(title, nav, body) {
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"/>
@@ -269,14 +284,14 @@ function indexPage() {
       const name = path.basename(f, ".md");
       const title = name.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       cards.push(
-        `<div class="card"><h3><a href="/docs/${f}">${esc(title)}</a></h3>` +
+        `<div class="card"><h3><a href="${relPath("index", f)}">${esc(title)}</a></h3>` +
           `<p>${esc(f)}</p></div>`,
       );
     }
     void label;
   }
   const nav = `<nav><h1>${TITLE}</h1><div class="sub">Browse the project docs</div>` +
-    `<a href="/">Index</a></nav>`;
+    `<a href="./index.html">Index</a></nav>`;
   const body =
     `<h1>Pokémon Vault — Documentation</h1><p>All project documentation rendered from <code>docs/</code>.</p>` +
     `<div class="cards">${cards.join("")}</div>`;
@@ -289,11 +304,11 @@ function docPage(rel) {
   if (!safe || !fs.existsSync(abs) || !abs.endsWith(".md")) return null;
   const md = fs.readFileSync(abs, "utf8");
   const files = listDocs();
-  const nav = `<nav><h1>${TITLE}</h1><div class="sub">${esc(rel)}</div><a href="/">← Index</a>` +
-    files.map((f) => `<a href="/docs/${f}">${esc(f)}</a>`).join("") + `</nav>`;
+  const nav = `<nav><h1>${TITLE}</h1><div class="sub">${esc(rel)}</div><a href="${relPath(rel, "index")}">← Index</a>` +
+    files.map((f) => `<a href="${relPath(rel, f)}">${esc(f)}</a>`).join("") + `</nav>`;
   const title = path.basename(rel, ".md").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const body = renderMarkdown(md) +
-    `<p class="raw"><a href="/raw/${rel}">View raw markdown</a></p>`;
+    `<p class="raw"><a href="${path.posix.basename(rel).replace(/\.md$/, ".md")}">View raw markdown</a></p>`;
   return layout(`${title} — ${TITLE}`, nav, body);
 }
 
@@ -336,6 +351,49 @@ const server = http.createServer((req, res) => {
   res.writeHead(404, { "Content-Type": "text/plain" });
   res.end("Not found");
 });
+
+// ---------------------------------------------------------------------------
+// Static export (GitHub Pages)
+//   node scripts/docs-server.cjs --export [OUT_DIR]
+// Renders every doc to plain .html files (no server needed) + copies images.
+// ---------------------------------------------------------------------------
+function staticExport() {
+  const outDir = process.argv[3] || path.join(ROOT, "docs-site");
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(path.join(outDir, "docs"), { recursive: true });
+
+  // index.html at the root
+  fs.writeFileSync(path.join(outDir, "index.html"), indexPage());
+
+  // each doc -> docs/<rel>.html
+  const files = listDocs();
+  for (const rel of files) {
+    const html = docPage(rel);
+    if (!html) continue;
+    const dest = path.join(outDir, "docs", rel.replace(/\.md$/, ".html"));
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, html);
+    // raw markdown alongside (docs/<rel>.md)
+    const src = path.join(DOCS, rel);
+    const rawDest = path.join(outDir, "docs", rel);
+    fs.mkdirSync(path.dirname(rawDest), { recursive: true });
+    fs.copyFileSync(src, rawDest);
+  }
+
+  // copy images referenced by the guides
+  const imgSrc = path.join(DOCS, "user-journeys", "images");
+  if (fs.existsSync(imgSrc)) {
+    fs.cpSync(imgSrc, path.join(outDir, "docs", "user-journeys", "images"), {
+      recursive: true,
+    });
+  }
+
+  console.log(`📦 Static docs exported to ${outDir}`);
+  console.log(`   ${files.length + 1} HTML pages + images.`);
+  process.exit(0);
+}
+
+if (process.argv[2] === "--export") staticExport();
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`📚 Pokémon Vault docs server → http://localhost:${PORT}`);

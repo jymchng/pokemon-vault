@@ -55,3 +55,6 @@ dist/
 
 # dev-env (G53) — runtime state, logs, disposable dev DB marker
 .dev-env/
+
+# static docs site (built by .github/workflows/docs-pages.yml)
+docs-site/
