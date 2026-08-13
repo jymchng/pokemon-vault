@@ -108,3 +108,30 @@ backend data renders through the UI.
 - `GET /api/v1/health` — liveness
 - `GET /api/v1/health/live` — liveness alias
 - `GET /api/v1/health/ready` — readiness (DB `SELECT 1` + Redis `PING`)
+
+## User journeys (screenshots + guides)
+
+Browse every journey through the storefront — guest browsing, sign in, cart,
+checkout, orders, collection, wishlist, rewards, pack opening, account — with
+screenshots captured from the dev environment:
+
+- **Guide index:** [`docs/user-journeys/`](user-journeys/README.md)
+
+### Test user (dev)
+
+A ready-made account is available for trying the signed-in journeys:
+
+| Field | Value |
+|---|---|
+| **Email (username)** | `test@vault.io` |
+| **Password** | `Str0ng!Passw0rd` |
+
+Create your own account from the sign-in modal, or reset the test user's
+cart/wishlist via the API (see `docs/user-journeys/README.md`).
+
+To re-capture the screenshots after UI changes:
+
+```bash
+./scripts/dev-env.sh up
+node docs/user-journeys/capture.cjs   # → docs/user-journeys/images/*.png
+```
